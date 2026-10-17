@@ -1,0 +1,140 @@
+/*
+ * Four themes as sets of design tokens. Components only use these variables,
+ * so a theme switch restyles every menu, sheet and toolbar at once.
+ */
+
+:root,
+:root[data-theme='moonlit'] {
+  --font: 'Nunito', ui-rounded, system-ui, sans-serif;
+  --weight: 600;
+  --weight-bold: 800;
+  --bg: #141533;
+  --bg-art:
+    radial-gradient(2px 2px at 12% 18%, rgba(246, 231, 193, 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 72% 12%, rgba(246, 231, 193, 0.7), transparent 60%),
+    radial-gradient(2px 2px at 85% 40%, rgba(246, 231, 193, 0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 30% 62%, rgba(246, 231, 193, 0.5), transparent 60%),
+    radial-gradient(14% 7% at 82% 14%, rgba(246, 231, 193, 0.95), rgba(246, 231, 193, 0) 70%),
+    radial-gradient(60% 40% at 20% 75%, rgba(127, 209, 199, 0.18), transparent 70%),
+    radial-gradient(70% 50% at 80% 30%, rgba(142, 124, 195, 0.28), transparent 70%),
+    linear-gradient(180deg, #1d1f4a 0%, #141533 55%, #0d0e24 100%);
+  --surface: #2b2a5c;
+  --surface-2: #363572;
+  --surface-glass: rgba(43, 42, 92, 0.78);
+  --ink: #f6e7c1;
+  --ink-soft: rgba(246, 231, 193, 0.68);
+  --accent: #8e7cc3;
+  --accent-ink: #1b1840;
+  --accent-2: #7fd1c7;
+  --accent-3: #f4a6c1;
+  --clay-hi: rgba(255, 255, 255, 0.32);
+  --clay-lo: rgba(16, 12, 56, 0.45);
+  --drop: rgba(0, 0, 0, 0.45);
+  --line: rgba(246, 231, 193, 0.14);
+  --scrim: rgba(7, 8, 24, 0.55);
+  --card-radius: 26px;
+  --card-shadow: inset 2px 2px 6px var(--clay-hi), inset -4px -4px 10px var(--clay-lo), 0 10px 28px var(--drop);
+  --btn-shadow: inset 3px 3px 8px var(--clay-hi), inset -5px -5px 12px var(--clay-lo), 0 10px 24px var(--drop);
+  --btn-shadow-pressed: inset 2px 2px 5px var(--clay-hi), inset -2px -2px 6px var(--clay-lo), 0 4px 10px var(--drop);
+  --title-shadow: 0 0 28px rgba(142, 124, 195, 0.75), 0 2px 0 rgba(16, 12, 56, 0.6);
+}
+
+:root[data-theme='clay'] {
+  --font: 'Fredoka', ui-rounded, system-ui, sans-serif;
+  --weight: 500;
+  --weight-bold: 600;
+  --bg: #fff6ec;
+  --bg-art:
+    radial-gradient(38% 26% at 12% 16%, rgba(255, 184, 168, 0.55), transparent 70%),
+    radial-gradient(34% 24% at 88% 22%, rgba(201, 182, 242, 0.55), transparent 70%),
+    radial-gradient(40% 26% at 82% 86%, rgba(168, 230, 207, 0.6), transparent 70%),
+    radial-gradient(36% 24% at 14% 84%, rgba(169, 214, 245, 0.55), transparent 70%),
+    radial-gradient(30% 20% at 50% 52%, rgba(255, 226, 154, 0.35), transparent 70%),
+    #fff6ec;
+  --surface: #ffffff;
+  --surface-2: #fff1e6;
+  --surface-glass: rgba(255, 255, 255, 0.86);
+  --ink: #5b4b6e;
+  --ink-soft: #8d7d9f;
+  --accent: #ffb8a8;
+  --accent-ink: #5b2e3a;
+  --accent-2: #a8e6cf;
+  --accent-3: #c9b6f2;
+  --clay-hi: rgba(255, 255, 255, 0.85);
+  --clay-lo: rgba(150, 100, 140, 0.2);
+  --drop: rgba(160, 110, 150, 0.28);
+  --line: rgba(91, 75, 110, 0.12);
+  --scrim: rgba(91, 75, 110, 0.28);
+  --card-radius: 30px;
+  --card-shadow: inset 4px 4px 10px var(--clay-hi), inset -6px -6px 14px var(--clay-lo), 0 14px 30px var(--drop);
+  --btn-shadow: inset 5px 5px 10px var(--clay-hi), inset -7px -7px 14px var(--clay-lo), 0 12px 26px var(--drop);
+  --btn-shadow-pressed: inset 3px 3px 6px var(--clay-hi), inset -3px -3px 8px var(--clay-lo), 0 5px 12px var(--drop);
+  --title-shadow: 0 4px 0 rgba(255, 184, 168, 0.9), 0 8px 22px rgba(160, 110, 150, 0.3);
+}
+
+:root[data-theme='meadow'] {
+  --font: 'Nunito', ui-rounded, system-ui, sans-serif;
+  --weight: 600;
+  --weight-bold: 800;
+  --bg: #f4ebdc;
+  --bg-art:
+    radial-gradient(120% 60% at 20% 108%, #6e9b7e 0 40%, transparent 41%),
+    radial-gradient(120% 60% at 85% 112%, #b1c49e 0 42%, transparent 43%),
+    radial-gradient(10% 6% at 82% 15%, rgba(242, 193, 78, 0.95), rgba(242, 193, 78, 0) 70%),
+    radial-gradient(18% 6% at 22% 20%, rgba(255, 255, 255, 0.9), transparent 70%),
+    radial-gradient(14% 5% at 30% 17%, rgba(255, 255, 255, 0.85), transparent 70%),
+    linear-gradient(180deg, #cfe6ee 0%, #f4ebdc 48%);
+  --surface: #fbf6ec;
+  --surface-2: #f1e6d2;
+  --surface-glass: rgba(251, 246, 236, 0.9);
+  --ink: #3e3a2f;
+  --ink-soft: #746c58;
+  --accent: #f2c14e;
+  --accent-ink: #3e3a2f;
+  --accent-2: #6e9b7e;
+  --accent-3: #d98261;
+  --clay-hi: rgba(255, 255, 255, 0.5);
+  --clay-lo: rgba(90, 70, 30, 0.16);
+  --drop: rgba(62, 58, 47, 0.18);
+  --line: rgba(62, 58, 47, 0.14);
+  --scrim: rgba(62, 58, 47, 0.3);
+  --card-radius: 22px;
+  /* Cut-paper look: a crisp offset shadow instead of a soft glow. */
+  --card-shadow: 0 0 0 2px rgba(62, 58, 47, 0.08), 5px 6px 0 rgba(62, 58, 47, 0.16);
+  --btn-shadow: 0 0 0 2px rgba(62, 58, 47, 0.1), 4px 5px 0 rgba(62, 58, 47, 0.22);
+  --btn-shadow-pressed: 0 0 0 2px rgba(62, 58, 47, 0.1), 1px 2px 0 rgba(62, 58, 47, 0.22);
+  --title-shadow: 3px 3px 0 rgba(242, 193, 78, 0.85);
+}
+
+:root[data-theme='dusk'] {
+  --font: 'Quicksand', ui-rounded, system-ui, sans-serif;
+  --weight: 500;
+  --weight-bold: 700;
+  --bg: #5a3e6e;
+  --bg-art:
+    radial-gradient(26% 16% at 50% 62%, #ffd6a5 0 45%, rgba(255, 214, 165, 0) 75%),
+    linear-gradient(160deg, transparent 0 62%, rgba(74, 59, 107, 0.95) 62.2%),
+    linear-gradient(200deg, transparent 0 66%, rgba(155, 93, 140, 0.9) 66.2%),
+    linear-gradient(140deg, transparent 0 74%, rgba(46, 34, 68, 0.95) 74.2%),
+    linear-gradient(180deg, #e07a8e 0%, #9b5d8c 40%, #5a3e6e 75%);
+  --surface: #6b4a7e;
+  --surface-2: #7a5590;
+  --surface-glass: rgba(74, 59, 107, 0.82);
+  --ink: #fdf3e7;
+  --ink-soft: rgba(253, 243, 231, 0.72);
+  --accent: #ff9f8a;
+  --accent-ink: #3a2245;
+  --accent-2: #ffd6a5;
+  --accent-3: #e07a8e;
+  --clay-hi: rgba(255, 255, 255, 0.2);
+  --clay-lo: rgba(30, 16, 44, 0.3);
+  --drop: rgba(30, 16, 44, 0.4);
+  --line: rgba(253, 243, 231, 0.16);
+  --scrim: rgba(30, 16, 44, 0.5);
+  --card-radius: 18px;
+  /* Origami: flat planes with a long folded-paper shadow. */
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.14) inset, 8px 10px 0 rgba(30, 16, 44, 0.28);
+  --btn-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 6px 7px 0 rgba(30, 16, 44, 0.32);
+  --btn-shadow-pressed: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 2px 3px 0 rgba(30, 16, 44, 0.32);
+  --title-shadow: 4px 4px 0 rgba(46, 34, 68, 0.6);
+}

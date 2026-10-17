@@ -1,0 +1,14 @@
+{
+  "name": "Drift",
+  "short_name": "Drift",
+  "description": "A calm, touch-reactive fluid toy box.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#070a18",
+  "theme_color": "#070a18",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
