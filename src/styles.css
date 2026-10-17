@@ -1531,6 +1531,70 @@ svg {
   color: var(--accent);
 }
 
+.toy-bubble.penguin {
+  background: radial-gradient(circle at 50% 35%, #e9f5fc, #a9d3ec 85%);
+}
+
+.toy-bubble.penguin .art svg {
+  width: 92%;
+  height: 92%;
+}
+
+.chick-unknown {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(160deg, #dcebf5, #b7d3e6);
+}
+
+.book-note {
+  margin: 0 4px 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.wardrobe-btn .fish-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px var(--drop);
+}
+
+.wardrobe-btn .map-new {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff6b8a;
+  box-shadow: 0 0 0 3px var(--surface);
+  display: none;
+}
+
+.wardrobe-btn.has-new .map-new {
+  display: block;
+  animation: bump 1.4s var(--ease-bounce) infinite;
+}
+
+.wear-card {
+  border: 2px solid transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.wear-card.wearing {
+  border-color: var(--accent);
+}
+
 .toy-bubble.koi {
   background: radial-gradient(circle at 50% 40%, #4f8f86, #23514c 80%);
 }

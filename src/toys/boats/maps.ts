@@ -13,7 +13,7 @@ export type MapId = 'pond' | 'river' | 'bay' | 'frozen' | 'lagoon';
 export type Twist = 'calm' | 'river' | 'wind' | 'ice' | 'whirlpool';
 export type Ground = 'meadow' | 'farm' | 'beach' | 'snow' | 'night' | 'garden';
 export type Floater = 'leaves' | 'bubbles' | 'petals' | 'none';
-export type IslandDecor = 'tree' | 'rock' | 'pine' | 'glow';
+export type IslandDecor = 'tree' | 'rock' | 'pine' | 'glow' | 'none';
 
 export type Shape =
   | { kind: 'rect'; x: number; y: number; w: number; h: number; r: number }

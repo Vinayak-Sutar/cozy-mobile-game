@@ -1,7 +1,7 @@
 import { isTier, type Tier } from '../engine/quality';
 
-export type ToyId = 'glow' | 'paint' | 'brush' | 'pond' | 'water' | 'painter' | 'window' | 'lanterns' | 'boats' | 'koi';
-export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond', 'water', 'painter', 'window', 'lanterns', 'boats', 'koi'];
+export type ToyId = 'glow' | 'paint' | 'brush' | 'pond' | 'water' | 'painter' | 'window' | 'lanterns' | 'boats' | 'koi' | 'penguin';
+export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond', 'water', 'painter', 'window', 'lanterns', 'boats', 'koi', 'penguin'];
 
 export type ThemeId = 'moonlit' | 'clay' | 'meadow' | 'dusk';
 export const THEME_IDS: ThemeId[] = ['moonlit', 'clay', 'meadow', 'dusk'];
@@ -97,6 +97,21 @@ export interface KoiProgress {
   born: number;
 }
 
+/** Penguin Island: chicks found and still lost, fish, shiny pebbles, clothes, and the islanders' requests. */
+export interface PenguinProgress {
+  /** Chicks ever found (the chick book). */
+  found: string[];
+  /** Chicks lost right now, and the hiding spot each one is at. */
+  lost: Record<string, number>;
+  fish: number;
+  pebbles: number[];
+  owned: string[];
+  hat: string | null;
+  neck: string | null;
+  /** How far along each islander's request is. */
+  quests: Record<string, number>;
+}
+
 export interface SaveData {
   settings: Settings;
   brush: BrushSettings;
@@ -106,6 +121,7 @@ export interface SaveData {
   lanterns: LanternProgress;
   boats: BoatProgress;
   koi: KoiProgress;
+  penguin: PenguinProgress;
   lastToy: ToyId | null;
   /** Last quality tier the device settled on in auto mode, so we start there next time. */
   tier: Tier | null;
@@ -139,6 +155,16 @@ function defaults(): SaveData {
       raised: {},
       next: 1,
       born: 2,
+    },
+    penguin: {
+      found: [],
+      lost: { puff: 0, dot: 1, squeak: 2, tuft: 3, bean: 4, nugget: 5 },
+      fish: 0,
+      pebbles: [],
+      owned: [],
+      hat: null,
+      neck: null,
+      quests: {},
     },
     lastToy: null,
     tier: null,
@@ -260,6 +286,27 @@ function load(): SaveData {
       }
       if (typeof koi.next === 'number' && koi.next >= 0) data.koi.next = Math.floor(koi.next);
       if (typeof koi.born === 'number' && koi.born >= 0) data.koi.born = Math.floor(koi.born);
+    }
+    const pen = saved.penguin;
+    if (pen) {
+      const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+      data.penguin.found = strings(pen.found);
+      if (pen.lost && typeof pen.lost === 'object') {
+        data.penguin.lost = {};
+        for (const [id, spot] of Object.entries(pen.lost)) {
+          if (typeof spot === 'number' && spot >= 0) data.penguin.lost[id] = Math.floor(spot);
+        }
+      }
+      data.penguin.fish = typeof pen.fish === 'number' && pen.fish > 0 ? Math.floor(pen.fish) : 0;
+      data.penguin.pebbles = Array.isArray(pen.pebbles) ? pen.pebbles.filter((x): x is number => typeof x === 'number') : [];
+      data.penguin.owned = strings(pen.owned);
+      data.penguin.hat = typeof pen.hat === 'string' ? pen.hat : null;
+      data.penguin.neck = typeof pen.neck === 'string' ? pen.neck : null;
+      if (pen.quests && typeof pen.quests === 'object') {
+        for (const [id, step] of Object.entries(pen.quests)) {
+          if (typeof step === 'number' && step >= 0) data.penguin.quests[id] = Math.floor(step);
+        }
+      }
     }
     if (saved.lastToy && TOY_IDS.includes(saved.lastToy)) data.lastToy = saved.lastToy;
     if (isTier(saved.tier)) data.tier = saved.tier;

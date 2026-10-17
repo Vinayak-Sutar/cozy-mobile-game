@@ -62,7 +62,12 @@ function fillShape(ctx: CanvasRenderingContext2D, s: Shape, unit: number, grow =
   }
 }
 
-export function paintScenery(map: WaterScene, unit: number, scale: number): HTMLCanvasElement {
+export interface SceneryOptions {
+  /** Scatter trees and such over the land (default true). Games that place their own leave this off. */
+  props?: boolean;
+}
+
+export function paintScenery(map: WaterScene, unit: number, scale: number, options: SceneryOptions = {}): HTMLCanvasElement {
   const [w, h] = map.size;
   const canvas = document.createElement('canvas');
   canvas.width = Math.max(1, Math.round(w * unit * scale));
@@ -83,11 +88,14 @@ export function paintScenery(map: WaterScene, unit: number, scale: number): HTML
   ctx.fillStyle = '#000';
   for (const s of map.water) fillShape(ctx, s, u);
   ctx.globalCompositeOperation = 'source-over';
+  // All rims first, then all land, so islands made of overlapping circles join up cleanly.
   for (const island of map.islands) {
     ctx.fillStyle = style.rim;
     ctx.beginPath();
     ctx.arc(island.x * u, island.y * u, (island.r + RIM) * u, 0, Math.PI * 2);
     ctx.fill();
+  }
+  for (const island of map.islands) {
     ctx.fillStyle = island.decor === 'rock' ? '#b9b2a6' : style.land;
     ctx.beginPath();
     ctx.arc(island.x * u, island.y * u, island.r * u, 0, Math.PI * 2);
@@ -134,7 +142,7 @@ export function paintScenery(map: WaterScene, unit: number, scale: number): HTML
 
   // Trees and such on the land, back to front.
   const props: { x: number; y: number; draw: () => void }[] = [];
-  for (let i = 0; i < w * h * 9; i++) {
+  for (let i = 0; i < (options.props === false ? 0 : w * h * 9); i++) {
     const x = random() * w;
     const y = random() * h;
     if (waterDistance(map, x, y) < 0.09 || !clear(x, y, 0.24)) continue;
@@ -143,7 +151,7 @@ export function paintScenery(map: WaterScene, unit: number, scale: number): HTML
     props.push({ x, y, draw: () => prop(ctx, map.ground, x * u, y * u, size, kind) });
   }
   for (const island of map.islands) {
-    if (island.decor === 'rock') continue;
+    if (island.decor === 'rock' || island.decor === 'none') continue;
     props.push({
       x: island.x,
       y: island.y + island.r * 0.4,
@@ -503,3 +511,7 @@ export function mapThumbnail(map: MapDef, width: number, height: number): HTMLCa
   }
   return canvas;
 }
+
+/** The trees, bushes and lanterns used as scenery, for games that place their own. */
+export const drawProp = prop;
+export const drawRock = rock;

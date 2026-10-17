@@ -217,6 +217,28 @@ export class AudioEngine {
     }
   }
 
+  /** A soft rush of air, like sliding fast on snow. */
+  whoosh(strength = 1, pan = 0): void {
+    if (!this.ready || !this.noise) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + 0.003;
+    const source = ctx.createBufferSource();
+    source.buffer = this.noise;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.Q.value = 0.8;
+    band.frequency.setValueAtTime(500, t);
+    band.frequency.exponentialRampToValueAtTime(1600, t + 0.3);
+    const out = this.output(pan) as GainNode;
+    const level = 0.12 * Math.min(1.5, Math.max(0.2, strength));
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(level, t + 0.06);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+    source.connect(band).connect(out);
+    source.start(t);
+    source.stop(t + 0.5);
+  }
+
   /** Something small dropping into water: a quick falling "plop". */
   plop(pan = 0, pitch = 1): void {
     if (!this.ready) return;

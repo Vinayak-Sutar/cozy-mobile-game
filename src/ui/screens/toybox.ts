@@ -108,21 +108,41 @@ const KOI_ART = `
   <circle cx="33" cy="82" r="9" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
 </svg>`;
 
+const PENGUIN_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <ellipse cx="50" cy="80" rx="40" ry="10" fill="#bfe0f2"/>
+  <path d="M10 80 q20 -6 40 -2" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.8"/>
+  <ellipse cx="50" cy="84" rx="16" ry="4" fill="rgba(40,70,100,0.18)"/>
+  <ellipse cx="43" cy="83" rx="6" ry="3" fill="#f39a3c"/><ellipse cx="57" cy="83" rx="6" ry="3" fill="#f39a3c"/>
+  <ellipse cx="34" cy="58" rx="5" ry="12" fill="#2f3446" transform="rotate(20 34 58)"/>
+  <ellipse cx="66" cy="58" rx="5" ry="12" fill="#2f3446" transform="rotate(-20 66 58)"/>
+  <ellipse cx="50" cy="56" rx="18" ry="26" fill="#2f3446"/>
+  <ellipse cx="52" cy="60" rx="13" ry="19" fill="#fbfbf7"/>
+  <circle cx="48" cy="42" r="2.3" fill="#26262f"/><circle cx="58" cy="42" r="2.3" fill="#26262f"/>
+  <path d="M51 46 l10 1 -10 2z" fill="#f39a3c"/>
+  <path d="M38 33a12 12 0 0 1 24 0z" fill="#e5462c"/><rect x="36" y="31" width="28" height="4" rx="2" fill="#ffffff"/>
+  <circle cx="78" cy="78" r="6" fill="#9aa0ad"/><ellipse cx="79" cy="77" rx="4" ry="3.5" fill="#eef0f4"/>
+  <circle cx="78" cy="76" r=".9" fill="#26262f"/><circle cx="81" cy="76" r=".9" fill="#26262f"/>
+</svg>`;
+
 /** Every new idea becomes its own section card here. */
 const SECTIONS: Section[] = [
   { id: 'glow', name: 'Glow' },
   { id: 'paint', name: 'Paint' },
   { id: 'brush', name: 'Paint with Brush', art: brushIcons.soft },
-  { id: 'pond', name: 'Pond', art: LILY_ART },
   { id: 'water', name: 'Water the Garden', art: GARDEN_ART },
   { id: 'painter', name: 'Little Painter', art: PIP_ART },
   { id: 'window', name: 'Hidden Picture', art: WINDOW_ART },
   { id: 'boats', name: 'Paper Boats', art: BOAT_ART },
-  { id: 'koi', name: 'Feed the Koi', art: KOI_ART },
+  { id: 'penguin', name: 'Penguin Island', art: PENGUIN_ART },
 ];
 
 /** Sections set aside for a rethink. They only show with ?lab=1 in the address. */
-const PARKED: Section[] = [{ id: 'lanterns', name: 'Lantern Lights', art: LANTERN_ART }];
+const PARKED: Section[] = [
+  { id: 'pond', name: 'Pond', art: LILY_ART },
+  { id: 'lanterns', name: 'Lantern Lights', art: LANTERN_ART },
+  { id: 'koi', name: 'Feed the Koi', art: KOI_ART },
+];
 
 export interface ToyboxActions {
   back(): void;

@@ -84,7 +84,17 @@ Then **Feed the Koi**, built the Paper Boats way: a clear "someone wants somethi
 - Koi are drawn top-down along a bendy spine (head to tail), with per-variety patterns seeded per fish, so every Kohaku's spots differ.
 - It reuses the Paper Boats water shader, shore painter and collision code (now a shared `WaterScene`), with a new garden ground style: moss, stones, maples, azaleas and stone lanterns.
 
-Next suggested: **Cloud Shepherd**, a bigger **Little Painter**, or more Paper Boats maps and passengers.
+## Round 3: fewer, deeper games
+Feedback: Koi and Lantern Lights didn't land, and Pond's idea wasn't clear (all three are parked; `?lab=1` shows them). Water the Garden should become a real incremental game. Paper Boats should be one open world built like a taxi game. And there's a new idea: a penguin you move around. Plan, in order:
+
+1. **Penguin Island** (built: v1). A top-down snowy island; drag to waddle, flick to belly-glide. Terrain changes the glide (ice slippery, powder slow, a slope speeds you up), and the camera follows. Rescue 6 lost chicks who follow in a line, collect fish and shiny pebbles, help three islanders, and buy hats. It borrows from Paper Boats: the island shape is a `WaterScene` of overlapping land circles, and it reuses the sea shader, the camera with fluid `shift`, and the speech bubbles with babble voices.
+2. **Water the Garden as an incremental garden.** Petals from blooms, a shop (seeds, plots, helpers like a sprinkler, bees and a gnome), prices at `base × 1.15^owned`, growth while away with a welcome-back summary, and real-time stages that leave breathers. Based on *My Tiny Garden*, *Herb Garden*, *Tiny Desk Pot* and [The Math of Idle Games](https://www.gamedeveloper.com/design/the-math-of-idle-games-part-i).
+3. **Paper Boats as an open-world water taxi**, at a cozy pace.
+   - **The loop:** fares wait around one big world (the five maps become regions), and you learn the destination after pickup. You get a distance fare plus a speed tip (a fading happy face, no fail), skill tips and a streak bonus.
+   - **Progress:** upgrades open regions, and regulars have request chains.
+   - **Based on:** *Crazy Taxi* ([manual](https://segaretro.org/images/6/67/CrazyTaxi_DC_US_DigitalManual.pdf)), *Easy Delivery Co.* and *Sail Forth* reviews.
+
+Next: test Penguin Island on a phone, then the incremental garden.
 
 ## What the market shows
 

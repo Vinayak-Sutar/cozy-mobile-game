@@ -15,6 +15,7 @@ import { HiddenPicture } from './toys/hiddenPicture';
 import { LanternLights } from './toys/lanternLights';
 import { PaperBoats } from './toys/paperBoats';
 import { FeedKoi } from './toys/feedKoi';
+import { PenguinIsland } from './toys/penguinIsland';
 import { LittlePainter } from './toys/littlePainter';
 import { MagicGarden } from './toys/magicGarden';
 import { WaterGarden } from './toys/waterGarden';
@@ -74,6 +75,7 @@ function boot(): void {
     lanterns: new LanternLights(),
     boats: new PaperBoats(),
     koi: new FeedKoi(),
+    penguin: new PenguinIsland(),
   };
   const backdrops = { glow: new GlowInk(), paint: new Watercolor() };
 
