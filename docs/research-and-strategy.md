@@ -20,10 +20,10 @@ Each would be its own section. All are cozy: no timers, no failing, and progress
 
 | Idea | How it plays | Reward | Effort |
 |---|---|---|---|
-| **Water the Garden** | A spring pours water from the top. Swirl to steer the stream onto dry seeds. Each seed fills a ring and blooms. | Herbarium album; new garden scenes | M |
+| **Water the Garden** (built: v2) | Choose seeds and pots from a tray and plant them in a 6-spot bed. Hold the cloud to rain on them; swirling makes wind that blows the rain. Plants grow seed → sprout → bud → bloom. | Flower album (8 species); a garden that stays | M |
 | **Feed the Koi** | Food drifts on the current. Swirl it to hungry koi, which grow and change patterns. | Koi collection | M–L |
 | **Lantern Lights** | Guide matching coloured light into floating lanterns. Lit lanterns rise into a constellation. | Constellation album | M |
-| **Little Painter** | A creature asks for a colour. Mix pigments on its dish until the meter fills. | Stickers; teaches colour mixing | S–M |
+| **Little Painter** (built: v1) | Pip asks for a colour. Mix red, yellow and blue in Pip's dish. A GPU probe reads the dish, and the paint is un-mixed back into red/yellow/blue amounts to compare proportions with the wish. | Colour book (12 colours); teaches colour mixing | S–M |
 | **Paper Boats** | Make currents to steer boats to the matching dock. Missed boats drift back. | Passengers and boat designs | M |
 | **Hidden Picture** | Swirl water to wash away mist and reveal a picture. | Picture album; great for toddlers | S |
 | **Cloud Shepherd** | Push clouds over thirsty fields to make rain and rainbows. | Seasons and scenes | M |
@@ -34,7 +34,15 @@ Every one of these needs the same shared pieces:
 - A completion celebration.
 - A persistent collection album.
 
-Suggested first: **Water the Garden**, then **Little Painter**.
+Built so far: **Water the Garden**.
+- v1 poured one heavy stream. It felt like a watering can and filled the screen like a small container.
+- v2 is a zoomed-out open scene with gentle rain. Raindrops are drawn particles, and the fluid is the air: a coarse wind map is read back from the GPU so swirling blows the rain.
+- You plant what you like, and the garden persists.
+
+Then **Little Painter**.
+- Matching compares the paint *proportions* found by un-mixing, with a generous range for how much paint is used. Over-painting doesn't punish a child, but tints like pink still need "just a little".
+
+Next suggested: **Hidden Picture** (quick, great for toddlers) or **Lantern Lights**.
 
 ## What the market shows
 

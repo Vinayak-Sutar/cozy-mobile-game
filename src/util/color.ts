@@ -36,3 +36,7 @@ export function hex(value: string): RGB {
 export const rand = (min: number, max: number): number => min + Math.random() * (max - min);
 
 export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
+
+export function toCss(c: RGB): string {
+  return `rgb(${c.map((v) => Math.round(clamp(v, 0, 1) * 255)).join(', ')})`;
+}

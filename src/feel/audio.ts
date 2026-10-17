@@ -8,7 +8,7 @@
  */
 
 export type Voice = 'bell' | 'marimba' | 'kalimba';
-export type Bed = 'pad' | 'paper' | 'night' | 'lullaby';
+export type Bed = 'pad' | 'paper' | 'night' | 'lullaby' | 'brook';
 export type UiSound = 'tap' | 'open' | 'close' | 'select';
 
 export interface SoundTheme {
@@ -40,6 +40,7 @@ export class AudioEngine {
   private noise!: AudioBuffer;
   private swishFilter!: BiquadFilterNode;
   private swishGain!: GainNode;
+  private rainGain: GainNode | null = null;
   private theme: SoundTheme | null = null;
   private bed: Stoppable | null = null;
   private lastNoteAt = 0;
@@ -82,6 +83,7 @@ export class AudioEngine {
     this.bed?.stop(1.2);
     this.bed = null;
     this.swishGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+    this.rainGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
     if (!theme) return;
     this.swishFilter.type = theme.swish.type;
     this.swishFilter.Q.value = theme.swish.q;
@@ -138,6 +140,36 @@ export class AudioEngine {
     const pan = (u - 0.5) * 1.2;
     this.playVoice('bell', mtof(scale[base] + 12), 0.45, pan, 0);
     this.playVoice('bell', mtof(scale[base + 1] + 12), 0.4, pan, 0.11);
+  }
+
+  /** Rain on leaves and soil, 0..1. The sound is built the first time it's needed. */
+  setRain(level: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!this.rainGain) {
+      const source = ctx.createBufferSource();
+      source.buffer = this.noise;
+      source.loop = true;
+      const high = ctx.createBiquadFilter();
+      high.type = 'highpass';
+      high.frequency.value = 1400;
+      const soft = ctx.createBiquadFilter();
+      soft.type = 'lowpass';
+      soft.frequency.value = 6500;
+      this.rainGain = ctx.createGain();
+      this.rainGain.gain.value = 0;
+      source.connect(high).connect(soft).connect(this.rainGain).connect(this.fxBus);
+      source.start();
+    }
+    const target = 0.07 * Math.min(1, Math.max(0, level));
+    this.rainGain.gain.setTargetAtTime(target, ctx.currentTime, target > this.rainGain.gain.value ? 0.15 : 0.5);
+  }
+
+  /** A happy little rising arpeggio (a whole garden in bloom). */
+  celebrate(): void {
+    if (!this.ready) return;
+    [72, 76, 79, 84, 88, 91].forEach((midi, i) => this.playVoice('kalimba', mtof(midi), 0.6, (i - 2.5) * 0.15, i * 0.09));
+    this.playVoice('bell', mtof(96), 0.35, 0, 0.6);
   }
 
   /** Small interface sounds: buttons, sheets, picks. */
@@ -444,6 +476,49 @@ export class AudioEngine {
         timer = window.setTimeout(cricket, 2200 + Math.random() * 4200);
       };
       timer = window.setTimeout(cricket, 2500);
+    } else if (bed === 'brook') {
+      // A babbling brook and the odd bird somewhere in the garden.
+      const brook = ctx.createBiquadFilter();
+      brook.type = 'bandpass';
+      brook.frequency.value = 900;
+      brook.Q.value = 0.5;
+      const brookGain = ctx.createGain();
+      brookGain.gain.value = 0.55;
+      lfo(0.31, 0.2, brookGain.gain);
+      lfo(0.17, 300, brook.frequency);
+      noiseSource().connect(brook).connect(brookGain).connect(bus);
+      bus.gain.linearRampToValueAtTime(0.06, t + 3);
+
+      const bird = (): void => {
+        if (!this.ctx) return;
+        const start = ctx.currentTime + 0.05;
+        const pan = ctx.createStereoPanner?.();
+        const g = ctx.createGain();
+        g.gain.value = 0;
+        if (pan) {
+          pan.pan.value = Math.random() * 1.6 - 0.8;
+          g.connect(pan).connect(bus);
+        } else {
+          g.connect(bus);
+        }
+        const o = ctx.createOscillator();
+        o.connect(g);
+        const base = 2600 + Math.random() * 1200;
+        const chirps = 2 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < chirps; i++) {
+          const s = start + i * 0.13;
+          o.frequency.setValueAtTime(base, s);
+          o.frequency.exponentialRampToValueAtTime(base * 1.35, s + 0.06);
+          g.gain.setValueAtTime(0, s);
+          g.gain.linearRampToValueAtTime(0.06, s + 0.015);
+          g.gain.linearRampToValueAtTime(0, s + 0.08);
+        }
+        o.start(start);
+        o.stop(start + chirps * 0.13 + 0.1);
+        o.onended = () => g.disconnect();
+        timer = window.setTimeout(bird, 3500 + Math.random() * 6000);
+      };
+      timer = window.setTimeout(bird, 2000);
     } else {
       // Menu lullaby: a slow music-box melody over a soft open fifth.
       const pad = ctx.createGain();

@@ -1,7 +1,7 @@
 import { isTier, type Tier } from '../engine/quality';
 
-export type ToyId = 'glow' | 'paint' | 'brush' | 'pond';
-export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond'];
+export type ToyId = 'glow' | 'paint' | 'brush' | 'pond' | 'water' | 'painter';
+export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond', 'water', 'painter'];
 
 export type ThemeId = 'moonlit' | 'clay' | 'meadow' | 'dusk';
 export const THEME_IDS: ThemeId[] = ['moonlit', 'clay', 'meadow', 'dusk'];
@@ -30,9 +30,36 @@ export interface BrushSettings {
   wetness: Wetness;
 }
 
+/** One planting spot in the garden bed. */
+export interface GardenSlot {
+  plant: string | null;
+  pot: string | null;
+  /** 0 = just planted, 1 = sprout, 2 = bud, 3 = in bloom. Rain moves it up. */
+  growth: number;
+}
+
+export const GARDEN_SLOTS = 6;
+
+/** Water the Garden: the bed as you left it, and every flower you've grown. */
+export interface GardenProgress {
+  slots: GardenSlot[];
+  flowers: Record<string, number>;
+}
+
+const emptySlots = (): GardenSlot[] =>
+  Array.from({ length: GARDEN_SLOTS }, () => ({ plant: null, pot: null, growth: 0 }));
+
+/** Little Painter: how many wishes you've granted, and which colours you've made. */
+export interface PainterProgress {
+  granted: number;
+  made: Record<string, number>;
+}
+
 export interface SaveData {
   settings: Settings;
   brush: BrushSettings;
+  garden: GardenProgress;
+  painter: PainterProgress;
   lastToy: ToyId | null;
   /** Last quality tier the device settled on in auto mode, so we start there next time. */
   tier: Tier | null;
@@ -53,6 +80,8 @@ function defaults(): SaveData {
       graphics: 'auto',
     },
     brush: { brush: 'soft', size: 1, color: 'rose', wetness: 'damp' },
+    garden: { slots: emptySlots(), flowers: {} },
+    painter: { granted: 0, made: {} },
     lastToy: null,
     tier: null,
     stats: { opens: 0, firstOpen: Date.now(), plays: {} },
@@ -89,6 +118,33 @@ function load(): SaveData {
       data.brush.size = typeof b.size === 'number' ? Math.min(2, Math.max(0, Math.round(b.size))) : data.brush.size;
       data.brush.color = typeof b.color === 'string' ? b.color : data.brush.color;
       data.brush.wetness = oneOf(b.wetness, ['dry', 'damp', 'wet'] as const, data.brush.wetness);
+    }
+    const g = saved.garden;
+    if (g) {
+      if (Array.isArray(g.slots)) {
+        g.slots.slice(0, GARDEN_SLOTS).forEach((slot, i) => {
+          if (!slot || typeof slot !== 'object') return;
+          data.garden.slots[i] = {
+            plant: typeof slot.plant === 'string' ? slot.plant : null,
+            pot: typeof slot.pot === 'string' ? slot.pot : null,
+            growth: typeof slot.growth === 'number' ? Math.min(3, Math.max(0, slot.growth)) : 0,
+          };
+        });
+      }
+      if (g.flowers && typeof g.flowers === 'object') {
+        for (const [id, count] of Object.entries(g.flowers)) {
+          if (typeof count === 'number' && count > 0) data.garden.flowers[id] = Math.floor(count);
+        }
+      }
+    }
+    const pp = saved.painter;
+    if (pp) {
+      data.painter.granted = typeof pp.granted === 'number' && pp.granted > 0 ? Math.floor(pp.granted) : 0;
+      if (pp.made && typeof pp.made === 'object') {
+        for (const [id, count] of Object.entries(pp.made)) {
+          if (typeof count === 'number' && count > 0) data.painter.made[id] = Math.floor(count);
+        }
+      }
     }
     if (saved.lastToy && TOY_IDS.includes(saved.lastToy)) data.lastToy = saved.lastToy;
     if (isTier(saved.tier)) data.tier = saved.tier;

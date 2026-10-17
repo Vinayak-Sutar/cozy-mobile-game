@@ -1064,6 +1064,344 @@ svg {
   border-color: var(--accent);
 }
 
+/* ---------- Water the Garden ---------- */
+
+.garden-counter {
+  position: absolute;
+  top: calc(14px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  height: 50px;
+  padding: 0 16px 0 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-glass);
+  color: var(--ink);
+  box-shadow: 0 4px 14px var(--drop);
+  font-size: 18px;
+  font-weight: var(--weight-bold);
+}
+
+.garden-counter svg {
+  width: 30px;
+  height: 30px;
+}
+
+.garden-counter.bump {
+  animation: bump 500ms var(--ease-bounce);
+}
+
+@keyframes bump {
+  40% {
+    transform: scale(1.22);
+  }
+}
+
+.garden-toast {
+  position: absolute;
+  top: calc(74px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 15px;
+  font-weight: var(--weight-bold);
+  box-shadow: 0 6px 18px var(--drop);
+  opacity: 0;
+  transform: translateY(-8px) scale(0.9);
+  transition: opacity 250ms ease, transform 350ms var(--ease-bounce);
+  pointer-events: none;
+}
+
+.garden-toast.show {
+  opacity: 1;
+  transform: none;
+}
+
+.album {
+  top: calc(74px + var(--safe-top));
+  bottom: auto;
+  max-height: calc(100% - 110px);
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.album-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.album-head .icon-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.album-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.album-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px 8px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  font-size: 12px;
+  text-align: center;
+}
+
+.album-card canvas {
+  width: 64px;
+  height: 72px;
+}
+
+.album-card.unknown {
+  color: var(--ink-soft);
+}
+
+.seed-bag {
+  transition: transform 220ms var(--ease-bounce), opacity 200ms ease;
+  position: absolute;
+  left: calc(14px + var(--safe-left));
+  bottom: calc(14px + var(--safe-bottom));
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-glass);
+  box-shadow: 0 6px 18px var(--drop);
+  transition: transform 220ms var(--ease-bounce);
+}
+
+.seed-bag .bag-icon svg {
+  width: 38px;
+  height: 38px;
+}
+
+/* The open tray has its own close button, so the bag steps aside. */
+.seed-bag.active {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+.seed-bag .bag-picked {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: none;
+  place-items: center;
+  background: var(--surface);
+  box-shadow: 0 2px 8px var(--drop);
+}
+
+.seed-bag.has-pick .bag-picked {
+  display: grid;
+  animation: bump 1.4s var(--ease-bounce) infinite;
+}
+
+.seed-bag .bag-picked canvas {
+  width: 30px;
+  height: 30px;
+}
+
+/* Sits low and compact so the garden bed above it stays visible. */
+.plant-tray {
+  bottom: calc(10px + var(--safe-bottom));
+  padding: 10px 12px 12px;
+}
+
+.plant-tray.open.dragging {
+  transform: translate(-50%, 115%);
+  opacity: 0;
+  transition: transform 220ms ease, opacity 160ms ease;
+}
+
+.tray-tabs button {
+  min-height: 36px;
+}
+
+.tray-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tray-tabs {
+  flex: 1;
+}
+
+.tray-head .icon-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.tray-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tray-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 2px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 3px solid transparent;
+  font-size: 12px;
+  touch-action: none;
+}
+
+.tray-item canvas {
+  width: 46px;
+  height: 46px;
+  pointer-events: none;
+}
+
+.tray-item.picked {
+  border-color: var(--accent);
+}
+
+.no-pot {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-soft);
+}
+
+.no-pot svg {
+  width: 26px;
+  height: 26px;
+}
+
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 30;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.25));
+}
+
+.drag-ghost.show {
+  opacity: 1;
+}
+
+.drag-ghost canvas {
+  width: 64px;
+  height: 64px;
+}
+
+/* ---------- Little Painter ---------- */
+
+.paint-pots {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14px + var(--safe-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--surface-glass);
+  box-shadow: 0 8px 26px var(--drop);
+}
+
+.pot-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  transition: transform 220ms var(--ease-bounce);
+}
+
+.pot-btn[aria-checked='true'] {
+  transform: translateY(-8px) scale(1.08);
+}
+
+.pot-btn .jar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08), 0 3px 8px var(--drop);
+}
+
+.pot-btn .jar-paint {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  box-shadow: inset 2px 3px 0 rgba(255, 255, 255, 0.35);
+}
+
+.pot-btn[aria-checked='true'] .jar {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--ink), 0 6px 12px var(--drop);
+}
+
+.pot-btn.sponge svg {
+  width: 34px;
+  height: 34px;
+}
+
+.pot-btn.sponge[aria-checked='true'] {
+  background: var(--surface-2);
+}
+
+.color-swatch {
+  width: 46px;
+  height: 46px;
+  margin: 8px 0 6px;
+  border-radius: 50% 46% 52% 44%;
+  border: 2px dashed var(--line);
+}
+
+.album-card:not(.unknown) .color-swatch {
+  border: 0;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.08);
+}
+
+.toy-bubble.painter {
+  background: #faf3e6;
+}
+
+.toy-bubble.painter .art svg {
+  width: 84%;
+  height: 84%;
+}
+
+.toy-bubble.water {
+  background: linear-gradient(180deg, #9fcff0 0%, #fbeedd 62%, #8f6a48 62%, #7a5236 100%);
+}
+
+.toy-bubble.water .art svg {
+  width: 82%;
+  height: 82%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo,
   .play-btn,

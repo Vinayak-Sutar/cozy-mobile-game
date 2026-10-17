@@ -3,6 +3,7 @@ import advectionSource from './shaders/advection.frag?raw';
 import clearSource from './shaders/clear.frag?raw';
 import curlSource from './shaders/curl.frag?raw';
 import divergenceSource from './shaders/divergence.frag?raw';
+import forceSource from './shaders/force.frag?raw';
 import gradientSubtractSource from './shaders/gradientSubtract.frag?raw';
 import pressureSource from './shaders/pressure.frag?raw';
 import splatSource from './shaders/splat.frag?raw';
@@ -24,6 +25,8 @@ export interface SimConfig {
   splatRadius: number;
   /** Multiplier from finger speed to fluid velocity. */
   splatForce: number;
+  /** How strongly dye (its red channel) sinks, like water falling through air. 0 = off. */
+  buoyancy?: number;
 }
 
 /** The parts of a quality tier the simulation cares about. */
@@ -64,6 +67,7 @@ export class FluidSim {
   private readonly pressureProgram: Program;
   private readonly gradientProgram: Program;
   private readonly advectionProgram: Program;
+  private readonly forceProgram: Program;
 
   constructor(
     private readonly gpu: Gpu,
@@ -79,6 +83,7 @@ export class FluidSim {
     this.pressureProgram = gpu.program(pressureSource);
     this.gradientProgram = gpu.program(gradientSubtractSource);
     this.advectionProgram = gpu.program(advectionSource, gpu.linearFiltering ? [] : ['MANUAL_FILTERING']);
+    this.forceProgram = gpu.program(forceSource);
     this.initFramebuffers();
   }
 
@@ -185,6 +190,17 @@ export class FluidSim {
     gl.uniform1f(this.vorticityProgram.u('dt'), dt);
     gpu.blit(velocity.write);
     velocity.swap();
+
+    if (config.buoyancy) {
+      this.forceProgram.bind();
+      gl.uniform2f(this.forceProgram.u('texelSize'), velocity.texelSizeX, velocity.texelSizeY);
+      gl.uniform1i(this.forceProgram.u('uVelocity'), velocity.read.attach(0));
+      gl.uniform1i(this.forceProgram.u('uDye'), this.dye.read.attach(1));
+      gl.uniform1f(this.forceProgram.u('uBuoyancy'), config.buoyancy);
+      gl.uniform1f(this.forceProgram.u('dt'), dt);
+      gpu.blit(velocity.write);
+      velocity.swap();
+    }
 
     this.divergenceProgram.bind();
     gl.uniform2f(this.divergenceProgram.u('texelSize'), velocity.texelSizeX, velocity.texelSizeY);

@@ -11,7 +11,9 @@ import { AudioEngine } from './feel/audio';
 import { Haptics } from './feel/haptics';
 import { BrushPaint } from './toys/brushPaint';
 import { GlowInk } from './toys/glowInk';
+import { LittlePainter } from './toys/littlePainter';
 import { MagicGarden } from './toys/magicGarden';
+import { WaterGarden } from './toys/waterGarden';
 import { Watercolor } from './toys/watercolor';
 import { HoldButton } from './ui/holdButton';
 import { icons } from './ui/icons';
@@ -57,7 +59,14 @@ function boot(): void {
   const prefs = new Prefs(audio, haptics);
   const stage = new Stage({ gpu, sim, quality, audio, haptics, glCanvas, overlayCanvas });
   const loop = new Loop((dt, rawDt, now) => stage.frame(dt, rawDt, now));
-  const toys = { glow: new GlowInk(), paint: new Watercolor(), brush: new BrushPaint(), pond: new MagicGarden() };
+  const toys = {
+    glow: new GlowInk(),
+    paint: new Watercolor(),
+    brush: new BrushPaint(),
+    pond: new MagicGarden(),
+    water: new WaterGarden(),
+    painter: new LittlePainter(),
+  };
   const backdrops = { glow: new GlowInk(), paint: new Watercolor() };
 
   const sheet = new Sheet($('sheets'), audio);
@@ -123,6 +132,8 @@ function boot(): void {
     if (document.hidden) {
       loop.stop();
       audio.suspend();
+      // The app may be closed from the background: keep progress (e.g. the garden).
+      store.save();
       return;
     }
     audio.resume();
