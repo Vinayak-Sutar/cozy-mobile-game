@@ -12,6 +12,9 @@ import { Haptics } from './feel/haptics';
 import { BrushPaint } from './toys/brushPaint';
 import { GlowInk } from './toys/glowInk';
 import { HiddenPicture } from './toys/hiddenPicture';
+import { LanternLights } from './toys/lanternLights';
+import { PaperBoats } from './toys/paperBoats';
+import { FeedKoi } from './toys/feedKoi';
 import { LittlePainter } from './toys/littlePainter';
 import { MagicGarden } from './toys/magicGarden';
 import { WaterGarden } from './toys/waterGarden';
@@ -68,6 +71,9 @@ function boot(): void {
     water: new WaterGarden(),
     painter: new LittlePainter(),
     window: new HiddenPicture(),
+    lanterns: new LanternLights(),
+    boats: new PaperBoats(),
+    koi: new FeedKoi(),
   };
   const backdrops = { glow: new GlowInk(), paint: new Watercolor() };
 

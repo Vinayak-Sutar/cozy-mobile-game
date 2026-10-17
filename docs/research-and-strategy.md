@@ -21,10 +21,10 @@ Each would be its own section. All are cozy: no timers, no failing, and progress
 | Idea | How it plays | Reward | Effort |
 |---|---|---|---|
 | **Water the Garden** (built: v2) | Choose seeds and pots from a tray and plant them in a 6-spot bed. Hold the cloud to rain on them; swirling makes wind that blows the rain. Plants grow seed → sprout → bud → bloom. | Flower album (8 species); a garden that stays | M |
-| **Feed the Koi** | Food drifts on the current. Swirl it to hungry koi, which grow and change patterns. | Koi collection | M–L |
-| **Lantern Lights** | Guide matching coloured light into floating lanterns. Lit lanterns rise into a constellation. | Constellation album | M |
+| **Feed the Koi** (built: v1) | Tap to sprinkle food from a slowly refilling pouch; it drifts on the current. Raise one baby at a time (6 + 8 pellets), while the grown-ups you raised compete for the food until they're full. Tapping right on a koi startles it. | Koi book (8 varieties) | M–L |
+| **Lantern Lights** (built: v1, parked) | Touch a lotus to scoop its light, then draw a ribbon of it into the lantern of the same colour; buoyancy carries the light up. A probe reads each lantern, and the light is un-mixed into pink/teal/gold amounts so only the matching colour fills it. Lit lanterns rise into a constellation. | Sky book (6 constellations) | M |
 | **Little Painter** (built: v1) | Pip asks for a colour. Mix red, yellow and blue in Pip's dish. A GPU probe reads the dish, and the paint is un-mixed back into red/yellow/blue amounts to compare proportions with the wish. | Colour book (12 colours); teaches colour mixing | S–M |
-| **Paper Boats** | Make currents to steer boats to the matching dock. Missed boats drift back. | Passengers and boat designs | M |
+| **Paper Boats** (built: v2, 5 maps) | One boat at a time: a passenger's bubble shows a picture of where they want to go (house, tree or tent), and that pier glows. Swipe to make currents; the boat follows the water through the CPU wind-field readback. Wrong pier: a head shake. | Boat log (8 passengers) | M |
 | **Hidden Picture** (built: v1) | A fogged-up window: wipe the fog (fluid dye) to reveal one of 8 drawn pictures. A probe grid measures how much is clear; drops trickle and clear trails. | Picture book (8 pictures); great for toddlers | S |
 | **Cloud Shepherd** | Push clouds over thirsty fields to make rain and rainbows. | Seasons and scenes | M |
 
@@ -44,7 +44,47 @@ Then **Little Painter**.
 
 Then **Hidden Picture**, as a foggy window that you wipe.
 
-Next suggested: **Lantern Lights** or **Feed the Koi**.
+Then **Lantern Lights**.
+- At first the flowers' steady light was meant to be wafted into the lanterns. It couldn't be balanced: the rising plumes curled over and filled nearby lanterns on their own, while far ones were very hard to reach.
+- Now you scoop light from a flower with your finger and carry it. The steady glow is faint and stays below the fill threshold, so no lantern lights without you.
+- Pink and gold point almost the same way in RGB, so matching un-mixes the light into the three lotus colours instead of comparing directions.
+- The idle ghost finger is off here (it would light lanterns for you). A gentle mote of light shows the move instead.
+
+Feedback: Lantern Lights felt confusing, so it's **parked**. The card is hidden and `?lab=1` shows it again. Little Painter is the favourite so far, and it's worth making richer later (more colours, harder wishes, more fun).
+
+Then **Paper Boats**, designed to be obvious at a glance after that lesson:
+- A character asks for one thing, as a picture (not a colour code), and the goal pier glows.
+- The control is direct and physical: push the water and the boat goes with it. Floating leaves make the current visible.
+- No ghost finger (it would steer for you). A drawn finger shows the swipe after a few idle seconds, or right away on the very first trip.
+- A good swipe moves the boat about a third of the pond, so a trip takes a few swipes and a bit of steering.
+
+The user loved Paper Boats and asked for bigger maps and more of them, each with its own feel and a twist. That became **Paper Boats v2**:
+- **Scrolling world.** Each map is a few screens big, and the camera follows the boat (with a little look-ahead). The fluid still only covers the screen: as the camera moves, the velocity, dye and pressure fields shift by whole texels (`FluidSim.shift`), so the water stays put under the world without blurring. An arrow at the screen edge points to an off-screen pier.
+- **Maps are data** (`src/toys/boats/maps.ts`): water shapes (rounded rects, circles, a river path), islands, piers, a water palette, ground style, sound and a twist. A signed distance to the shore handles collisions for boats, leaves and ice. The scenery (land, piers, trees, reeds) is painted once per map, and a small blurred water mask gives the shader its shallows.
+- **Twists** (`src/toys/boats/twists.ts`), all added on the CPU on top of the stirred water:
+  - **River:** a current along the path, fastest mid-stream.
+  - **Wind:** gusts from a random direction, with streaks and a wind sound.
+  - **Ice:** floes that follow the water and collide.
+  - **Whirlpools:** a swirl field drawn as glowing spiral arms.
+- **Progression:** carry 3 passengers on a map to open the next one. A "new place" banner appears and the map button gets a dot. The Places list shows locks and progress dots.
+- **Results:** a test player docked every trip on every map in 2–6 aimed swipes. The river and the lagoon take the most work.
+
+Then **passenger chatter**, to give the passengers personality.
+- Game writers call these short lines "barks": a line that answers something the player just did. Good barks give feedback and show who is talking; repetition and generic "skeleton talk" make players tune out. ([How to write video game barks](https://howtowriteagame.substack.com/p/how-to-write-video-game-barks), [Adding life to worlds with dialogue barks](https://gamedeveloper.com/design/adding-life-to-worlds-with-dialogue-barks), [More character in your NPCs](https://pausebutton.substack.com/p/how-to-put-more-character-into-your))
+- Animal Crossing gives each villager a personality type and a catchphrase tied to species and personality ([TV Tropes: villager types](https://www.tvtropes.org/pmwiki/pmwiki.php/Characters/AnimalCrossingVillagerTypes), [Nookipedia: Moe](https://www.nookipedia.com/wiki/Moe)). Its "Animalese" voice plays one short sound per letter, higher when happy and lower when cross ([Nookipedia: Animalese](https://nookipedia.com/wiki/Animalese)).
+- Built:
+  - **Cast:** each passenger has a name, a trait, a catchphrase-ish voice and a babble pitch (`src/toys/boats/dialogue.ts`).
+  - **Lines:** written for board (introducing themselves on a first ride), tap, waiting, going fast, bump, wrong pier, each map's twist, and arrival. Arrival lines come from the passenger or from the place.
+  - **Rules:** lines have priorities and small remarks have a cooldown, so nobody chatters, and the same line never comes twice in a row.
+  - **Bubbles:** the speech bubble fills in letter by letter with a synthesized babble blip on every other letter.
+
+Then **Feed the Koi**, built the Paper Boats way: a clear "someone wants something" (a baby koi with a hunger bubble and growth dots) and a direct control (tap to drop food, swipe to move it).
+- The twist comes from the pond itself. Every koi you raise stays in the pond and competes for food, so the game gets busier as you collect.
+- Strategies grow out of that: fill the grown-ups up first, toss food far away to distract them, or swirl food over to the baby. A tap right on top of a fish startles it, which teaches a gentle touch.
+- Koi are drawn top-down along a bendy spine (head to tail), with per-variety patterns seeded per fish, so every Kohaku's spots differ.
+- It reuses the Paper Boats water shader, shore painter and collision code (now a shared `WaterScene`), with a new garden ground style: moss, stones, maples, azaleas and stone lanterns.
+
+Next suggested: **Cloud Shepherd**, a bigger **Little Painter**, or more Paper Boats maps and passengers.
 
 ## What the market shows
 

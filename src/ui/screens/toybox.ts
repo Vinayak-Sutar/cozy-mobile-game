@@ -66,6 +66,48 @@ const WINDOW_ART = `
   <path d="M68 69 v12" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
 </svg>`;
 
+const LANTERN_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <circle cx="30" cy="22" r="1.6" fill="#fff6d6"/><circle cx="72" cy="16" r="1.4" fill="#fff6d6"/><circle cx="82" cy="34" r="1.2" fill="#fff6d6"/>
+  <circle cx="50" cy="44" r="22" fill="#ff7fc4" opacity="0.25"/>
+  <path d="M38 30 q12 -5 24 0 q4 16 -4 30 h-16 q-8 -14 -4 -30z" fill="#f7c6df" stroke="#c9789f" stroke-width="1.5"/>
+  <path d="M44 30 q-2 16 2 30 M56 30 q2 16 -2 30" stroke="#c9789f" stroke-width="1.2" fill="none"/>
+  <ellipse cx="50" cy="57" rx="4" ry="5" fill="#ffd56a"/>
+  <ellipse cx="50" cy="82" rx="26" ry="4" fill="#2c5d4c"/>
+  <g fill="#bff7ea"><ellipse cx="45" cy="78" rx="3" ry="6" transform="rotate(-25 45 78)"/><ellipse cx="55" cy="78" rx="3" ry="6" transform="rotate(25 55 78)"/><ellipse cx="50" cy="76" rx="3" ry="7"/></g>
+</svg>`;
+
+const BOAT_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <path d="M8 74c8 -4 14 4 22 0s14 -4 22 0 14 4 22 0 14 -4 18 -2" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <ellipse cx="50" cy="70" rx="32" ry="5" fill="rgba(20,70,80,0.2)"/>
+  <path d="M30 56 l12 -30 l14 30z" fill="#ece5d8" stroke="#8a7a6a" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="60" cy="48" r="9" fill="#7cc76a" stroke="rgba(60,45,40,0.3)" stroke-width="1.2"/>
+  <circle cx="55" cy="40" r="4" fill="#7cc76a"/><circle cx="65" cy="40" r="4" fill="#7cc76a"/>
+  <circle cx="55" cy="40" r="1.6" fill="#3b3346"/><circle cx="65" cy="40" r="1.6" fill="#3b3346"/>
+  <path d="M56 50 q4 3 8 0" stroke="#3b3346" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <path d="M18 56 h64 l-10 14 h-44z" fill="#ffffff" stroke="#8a7a6a" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M18 56 l24 14 h-14z" fill="rgba(0,0,0,0.06)"/>
+  <g transform="translate(76 18)">
+    <circle r="12" fill="#ffffff" stroke="rgba(60,50,70,0.25)" stroke-width="1.4"/>
+    <path d="M-6 4 v-6 h12 v6z" fill="#fff3dc"/><path d="M-8 -1 l8 -7 l8 7z" fill="#e8735a"/>
+  </g>
+</svg>`;
+
+const KOI_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <ellipse cx="72" cy="30" rx="13" ry="12" fill="#5c9a4c"/>
+  <path d="M72 30 L85 26 L84 34 Z" fill="#3f7a5a"/>
+  <g transform="rotate(-25 50 58)">
+    <path d="M20 58 q30 -16 54 -2 l12 -9 -3 11 3 11 -12 -9 q-24 14 -54 -2z" fill="#fdf7ef" stroke="rgba(80,60,50,0.35)" stroke-width="1.4"/>
+    <ellipse cx="38" cy="56" rx="8" ry="6" fill="#e5462c"/>
+    <ellipse cx="56" cy="58" rx="7" ry="5" fill="#e5462c"/>
+    <circle cx="25" cy="55" r="1.6" fill="#26262f"/><circle cx="25" cy="61" r="1.6" fill="#26262f"/>
+  </g>
+  <circle cx="30" cy="80" r="2.6" fill="#b06a3b"/><circle cx="37" cy="84" r="2.4" fill="#b06a3b"/><circle cx="26" cy="87" r="2.2" fill="#b06a3b"/>
+  <circle cx="33" cy="82" r="9" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.6"/>
+</svg>`;
+
 /** Every new idea becomes its own section card here. */
 const SECTIONS: Section[] = [
   { id: 'glow', name: 'Glow' },
@@ -75,7 +117,12 @@ const SECTIONS: Section[] = [
   { id: 'water', name: 'Water the Garden', art: GARDEN_ART },
   { id: 'painter', name: 'Little Painter', art: PIP_ART },
   { id: 'window', name: 'Hidden Picture', art: WINDOW_ART },
+  { id: 'boats', name: 'Paper Boats', art: BOAT_ART },
+  { id: 'koi', name: 'Feed the Koi', art: KOI_ART },
 ];
+
+/** Sections set aside for a rethink. They only show with ?lab=1 in the address. */
+const PARKED: Section[] = [{ id: 'lanterns', name: 'Lantern Lights', art: LANTERN_ART }];
 
 export interface ToyboxActions {
   back(): void;
@@ -104,7 +151,8 @@ export class ToyboxScreen {
     this.el = el;
     this.grid = el.querySelector('.toy-grid') as HTMLElement;
 
-    for (const section of SECTIONS) {
+    const sections = new URLSearchParams(location.search).has('lab') ? [...SECTIONS, ...PARKED] : SECTIONS;
+    for (const section of sections) {
       const card = document.createElement('button');
       card.className = 'toy-card clay';
       card.dataset.toy = section.id;

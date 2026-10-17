@@ -7,6 +7,7 @@ import forceSource from './shaders/force.frag?raw';
 import gradientSubtractSource from './shaders/gradientSubtract.frag?raw';
 import mixToSource from './shaders/mixTo.frag?raw';
 import pressureSource from './shaders/pressure.frag?raw';
+import shiftSource from './shaders/shift.frag?raw';
 import splatSource from './shaders/splat.frag?raw';
 import vorticitySource from './shaders/vorticity.frag?raw';
 
@@ -26,8 +27,12 @@ export interface SimConfig {
   splatRadius: number;
   /** Multiplier from finger speed to fluid velocity. */
   splatForce: number;
-  /** How strongly dye (its red channel) sinks, like water falling through air. 0 = off. */
+  /** How strongly dye sinks (positive, like water) or rises (negative, like warm light). 0 = off. */
   buoyancy?: number;
+  /** Which dye channels count for buoyancy (default: red only). */
+  buoyancyWeights?: RGB;
+  /** Extra dye fading toward the top of the screen (0 = none). */
+  ceilingFade?: number;
 }
 
 /** The parts of a quality tier the simulation cares about. */
@@ -70,6 +75,7 @@ export class FluidSim {
   private readonly advectionProgram: Program;
   private readonly forceProgram: Program;
   private readonly mixToProgram: Program;
+  private readonly shiftProgram: Program;
 
   constructor(
     private readonly gpu: Gpu,
@@ -87,6 +93,7 @@ export class FluidSim {
     this.advectionProgram = gpu.program(advectionSource, gpu.linearFiltering ? [] : ['MANUAL_FILTERING']);
     this.forceProgram = gpu.program(forceSource);
     this.mixToProgram = gpu.program(mixToSource);
+    this.shiftProgram = gpu.program(shiftSource);
     this.initFramebuffers();
   }
 
@@ -165,6 +172,23 @@ export class FluidSim {
     this.dye.swap();
   }
 
+  /**
+   * Slides everything by (du, dv) in uv, for a camera scrolling over a bigger
+   * world: content at uv moves to uv - (du, dv). Shift by whole velocity
+   * texels (multiples of 1 / velocity.width) so nothing gets blurred.
+   */
+  shift(du: number, dv: number): void {
+    const gl = this.gpu.gl;
+    gl.disable(gl.BLEND);
+    this.shiftProgram.bind();
+    gl.uniform2f(this.shiftProgram.u('uOffset'), du, dv);
+    for (const field of [this.velocity, this.dye, this.pressure]) {
+      gl.uniform1i(this.shiftProgram.u('uSource'), field.read.attach(0));
+      this.gpu.blit(field.write);
+      field.swap();
+    }
+  }
+
   /** Stops all motion (after an undo, so restored paint doesn't keep sliding). */
   clearVelocity(): void {
     this.gpu.clearFbo(this.velocity.read);
@@ -218,6 +242,8 @@ export class FluidSim {
       gl.uniform1i(this.forceProgram.u('uVelocity'), velocity.read.attach(0));
       gl.uniform1i(this.forceProgram.u('uDye'), this.dye.read.attach(1));
       gl.uniform1f(this.forceProgram.u('uBuoyancy'), config.buoyancy);
+      const w = config.buoyancyWeights ?? [1, 0, 0];
+      gl.uniform3f(this.forceProgram.u('uWeights'), w[0], w[1], w[2]);
       gl.uniform1f(this.forceProgram.u('dt'), dt);
       gpu.blit(velocity.write);
       velocity.swap();
@@ -261,6 +287,7 @@ export class FluidSim {
     gl.uniform1i(advection.u('uSource'), velocityUnit);
     gl.uniform1f(advection.u('dt'), dt);
     gl.uniform1f(advection.u('dissipation'), config.velocityDissipation);
+    gl.uniform1f(advection.u('ceiling'), 0);
     gpu.blit(velocity.write);
     velocity.swap();
 
@@ -270,6 +297,7 @@ export class FluidSim {
     gl.uniform1i(advection.u('uVelocity'), velocity.read.attach(0));
     gl.uniform1i(advection.u('uSource'), this.dye.read.attach(1));
     gl.uniform1f(advection.u('dissipation'), config.densityDissipation);
+    gl.uniform1f(advection.u('ceiling'), config.ceilingFade ?? 0);
     gpu.blit(this.dye.write);
     this.dye.swap();
   }

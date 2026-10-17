@@ -41,6 +41,7 @@ export class AudioEngine {
   private swishFilter!: BiquadFilterNode;
   private swishGain!: GainNode;
   private rainGain: GainNode | null = null;
+  private windGain: GainNode | null = null;
   private theme: SoundTheme | null = null;
   private bed: Stoppable | null = null;
   private lastNoteAt = 0;
@@ -84,6 +85,7 @@ export class AudioEngine {
     this.bed = null;
     this.swishGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
     this.rainGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
+    this.windGain?.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
     if (!theme) return;
     this.swishFilter.type = theme.swish.type;
     this.swishFilter.Q.value = theme.swish.q;
@@ -163,6 +165,74 @@ export class AudioEngine {
     }
     const target = 0.07 * Math.min(1, Math.max(0, level));
     this.rainGain.gain.setTargetAtTime(target, ctx.currentTime, target > this.rainGain.gain.value ? 0.15 : 0.5);
+  }
+
+  /** A soft rushing wind, 0..1 (gusts in Windy Bay). Built the first time it's needed. */
+  setWind(level: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (!this.windGain) {
+      const source = ctx.createBufferSource();
+      source.buffer = this.noise;
+      source.loop = true;
+      const band = ctx.createBiquadFilter();
+      band.type = 'bandpass';
+      band.frequency.value = 520;
+      band.Q.value = 0.6;
+      this.windGain = ctx.createGain();
+      this.windGain.gain.value = 0;
+      source.connect(band).connect(this.windGain).connect(this.fxBus);
+      source.start();
+    }
+    const target = 0.09 * Math.min(1, Math.max(0, level));
+    this.windGain.gain.setTargetAtTime(target, ctx.currentTime, target > this.windGain.gain.value ? 0.4 : 0.8);
+  }
+
+  /**
+   * One syllable of a talking animal's babble, at a MIDI pitch: a tiny voice
+   * blip with a lift at the end, the way Animal Crossing animals chatter.
+   */
+  babble(midi: number, pan = 0): void {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + 0.003;
+    const out = this.output(pan) as GainNode;
+    const voice = ctx.createOscillator();
+    voice.type = 'triangle';
+    voice.frequency.setValueAtTime(mtof(midi), t);
+    voice.frequency.exponentialRampToValueAtTime(mtof(midi + 2), t + 0.06);
+    const overtone = ctx.createOscillator();
+    overtone.type = 'sine';
+    overtone.frequency.setValueAtTime(mtof(midi + 12), t);
+    const soft = ctx.createGain();
+    soft.gain.value = 0.25;
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    voice.connect(out);
+    overtone.connect(soft).connect(out);
+    for (const osc of [voice, overtone]) {
+      osc.start(t);
+      osc.stop(t + 0.1);
+    }
+  }
+
+  /** Something small dropping into water: a quick falling "plop". */
+  plop(pan = 0, pitch = 1): void {
+    if (!this.ready) return;
+    const ctx = this.ctx!;
+    const t = ctx.currentTime + 0.003;
+    const out = this.output(pan) as GainNode;
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(900 * pitch, t);
+    osc.frequency.exponentialRampToValueAtTime(260 * pitch, t + 0.09);
+    out.gain.setValueAtTime(0.0001, t);
+    out.gain.exponentialRampToValueAtTime(0.12, t + 0.008);
+    out.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    osc.connect(out);
+    osc.start(t);
+    osc.stop(t + 0.14);
   }
 
   /** A happy little rising arpeggio (a whole garden in bloom). */

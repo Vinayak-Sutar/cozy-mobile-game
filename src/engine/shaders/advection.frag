@@ -8,6 +8,9 @@ uniform vec2 texelSize;
 uniform vec2 dyeTexelSize;
 uniform float dt;
 uniform float dissipation;
+// Extra fading toward the top of the screen (0 = none), so rising dye can
+// dissolve into the sky instead of pooling under the top edge.
+uniform float ceiling;
 
 vec4 bilerp (sampler2D sam, vec2 uv, vec2 tsize) {
     vec2 st = uv / tsize - 0.5;
@@ -28,6 +31,6 @@ void main () {
     vec2 coord = vUv - dt * texture2D(uVelocity, vUv).xy * texelSize;
     vec4 result = texture2D(uSource, coord);
 #endif
-    float decay = 1.0 + dissipation * dt;
+    float decay = 1.0 + (dissipation + ceiling * smoothstep(0.62, 1.0, vUv.y)) * dt;
     gl_FragColor = result / decay;
 }

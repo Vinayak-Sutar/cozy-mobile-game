@@ -3,9 +3,18 @@ import type { Program } from '../engine/gl';
 import { Bloom, Sunrays } from '../engine/post';
 import type { SoundTheme } from '../feel/audio';
 import type { Pointer } from '../input/pointers';
-import { hex, hsv, rand, scale } from '../util/color';
+import { clamp, hex, hsv, rand, scale } from '../util/color';
 import displaySource from './shaders/glowInk.frag?raw';
 import { Toy } from './Toy';
+
+/** A finger resting on the glass: light gathers and spins under it. */
+interface Hold {
+  pointer: Pointer;
+  /** Seconds the finger has stayed (nearly) still. */
+  still: number;
+  spin: number;
+  dir: number;
+}
 
 /** Neon ink swirling in a dark room. The "wow on first touch" toy. */
 export class GlowInk extends Toy {
@@ -36,6 +45,7 @@ export class GlowInk extends Toy {
   private bgBottom = hex('#04050d');
   /** When set (menu backdrop), every colour stays within this band around a fixed hue. */
   private band: { hue: number; range: number } | null = null;
+  private holds = new Map<number, Hold>();
 
   /** Used by the menu backdrop: themed night sky and a narrow, matching colour band. */
   setLook(top: string, bottom: string, hue: number, range: number): void {
@@ -46,14 +56,84 @@ export class GlowInk extends Toy {
   }
 
   strokeColor(pointer: Pointer): RGB {
-    // Each finger gets its own hue; colours drift slowly while the finger moves.
+    return scale(hsv(this.hueFor(pointer), this.band ? 0.7 : 0.78, 1), 0.06);
+  }
+
+  /** Each finger gets its own hue; colours drift slowly while the finger moves. */
+  private hueFor(pointer: Pointer): number {
     const age = performance.now() / 1000 - pointer.startTime;
-    if (this.band) {
-      const wave = Math.sin(pointer.stroke * 1.7 + age * 0.6);
-      return scale(hsv(this.band.hue + wave * this.band.range, 0.7, 1), 0.06);
+    if (this.band) return this.band.hue + Math.sin(pointer.stroke * 1.7 + age * 0.6) * this.band.range;
+    return this.hueBase + pointer.stroke * 0.17 + age * 0.04;
+  }
+
+  /** A touch opens a little flower of light: a bright heart, and petals flung outward. */
+  override pointerDown(pointer: Pointer): void {
+    const [u, v] = this.uv(pointer.x, pointer.y);
+    this.bloomAt(pointer, u, v, 1);
+    this.env.audio.note(u, v, 0.55);
+    this.holds.set(pointer.id, { pointer, still: 0, spin: rand(0, Math.PI * 2), dir: Math.random() < 0.5 ? 1 : -1 });
+  }
+
+  /** Letting go after holding still: the gathered light blooms out, bigger the longer it was held. */
+  override pointerUp(pointer: Pointer): void {
+    const hold = this.holds.get(pointer.id);
+    this.holds.delete(pointer.id);
+    if (!hold) return;
+    const charge = this.charge(hold);
+    if (charge < 0.08) return;
+    const [u, v] = this.uv(pointer.x, pointer.y);
+    this.bloomAt(pointer, u, v, 1 + charge * 1.6);
+    this.env.audio.chime(u, v);
+    this.env.haptics.tap(0.2 + charge * 0.4);
+  }
+
+  override update(dt: number): void {
+    super.update(dt);
+    const { sim } = this.env;
+    const { width, height } = this.env.view;
+    const minDim = Math.min(width, height);
+    const weight = clamp(dt * 60, 0.25, 2);
+    for (const hold of this.holds.values()) {
+      const p = hold.pointer;
+      hold.still = p.speed < minDim * 0.25 ? hold.still + dt : Math.max(0, hold.still - dt * 3);
+      const charge = this.charge(hold);
+      if (charge <= 0) continue;
+      // Three wisps circle the fingertip, faster and brighter as the charge builds, breathing gently.
+      hold.spin += dt * (2.2 + charge * 4) * hold.dir;
+      const pulse = 0.75 + 0.25 * Math.sin(this.time * 5);
+      const ring = minDim * (0.028 + charge * 0.03);
+      // Added every frame, so it stays small (about what a slow-moving finger adds).
+      const swirl = (8 + charge * 14) * hold.dir * weight;
+      const hue = this.hueFor(p);
+      for (let j = 0; j < 3; j++) {
+        const a = hold.spin + (j * Math.PI * 2) / 3;
+        const [u, v] = this.uv(p.x + Math.cos(a) * ring, p.y + Math.sin(a) * ring);
+        const color = scale(hsv(hue + (j - 1) * 0.05, 0.75, 1), 0.0045 * (0.3 + charge) * pulse * weight);
+        sim.splat(u, v, -Math.sin(a) * swirl, -Math.cos(a) * swirl, color, 0.32);
+      }
     }
-    const hue = this.hueBase + pointer.stroke * 0.17 + age * 0.04;
-    return scale(hsv(hue, 0.78, 1), 0.06);
+  }
+
+  /** 0..1: how much light a resting finger has gathered (after a short moment of stillness). */
+  private charge(hold: Hold): number {
+    return clamp((hold.still - 0.25) / 1.6, 0, 1);
+  }
+
+  private bloomAt(pointer: Pointer, u: number, v: number, strength: number): void {
+    const { sim } = this.env;
+    const { width, height } = this.env.view;
+    const hue = this.hueFor(pointer);
+    const spread = this.band ? Math.min(0.05, this.band.range) : 0.07;
+    sim.splatDye(u, v, scale(hsv(hue, 0.55, 1), 0.3 * strength), 0.4);
+    const petals = 7;
+    const ring = Math.min(width, height) * 0.04 * (0.8 + strength * 0.35);
+    const push = 600 * strength;
+    const offset = rand(0, Math.PI * 2);
+    for (let k = 0; k < petals; k++) {
+      const a = offset + (k / petals) * Math.PI * 2;
+      const color = scale(hsv(hue + (k % 2 ? spread : -spread), 0.8, 1), 0.14 * strength);
+      sim.splat(u + (Math.cos(a) * ring) / width, v + (Math.sin(a) * ring) / height, Math.cos(a) * push, Math.sin(a) * push, color, 0.3);
+    }
   }
 
   protected override onEnter(): void {
@@ -62,6 +142,7 @@ export class GlowInk extends Toy {
   }
 
   override exit(): void {
+    this.holds.clear();
     this.bloom?.dispose();
     this.sunrays?.dispose();
     this.bloom = null;

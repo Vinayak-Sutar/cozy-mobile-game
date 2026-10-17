@@ -1162,6 +1162,12 @@ svg {
   height: 72px;
 }
 
+.album-trait {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
 .album-card.unknown {
   color: var(--ink-soft);
 }
@@ -1413,6 +1419,137 @@ svg {
 .toy-bubble.window .art svg {
   width: 88%;
   height: 88%;
+}
+
+.toy-bubble.lanterns {
+  background: radial-gradient(circle at 50% 30%, #1d2150, #0a0c22 75%);
+}
+
+.toy-bubble.lanterns .art svg {
+  width: 92%;
+  height: 92%;
+}
+
+.sky-unknown {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(160deg, #2a2f63, #171a3d);
+}
+
+.toy-bubble.boats {
+  background: radial-gradient(circle at 50% 40%, #8fd3d6, #4f9fa8 80%);
+}
+
+.toy-bubble.boats .art svg {
+  width: 92%;
+  height: 92%;
+}
+
+.map-btn .map-new {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff6b8a;
+  box-shadow: 0 0 0 3px var(--surface);
+  display: none;
+}
+
+.map-btn.has-new .map-new {
+  display: block;
+  animation: bump 1.4s var(--ease-bounce) infinite;
+}
+
+.map-btn.bump {
+  animation: bump 500ms var(--ease-bounce);
+}
+
+.place-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.place-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 2px solid transparent;
+  background: var(--surface-2);
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+}
+
+.place-card.current {
+  border-color: var(--accent);
+}
+
+.place-card.locked {
+  opacity: 0.75;
+}
+
+.place-card.locked canvas {
+  filter: grayscale(0.7) brightness(0.92);
+}
+
+.place-card canvas {
+  flex: none;
+  width: 76px;
+  height: 76px;
+}
+
+.place-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+.place-text strong {
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.place-text .lock svg {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+.place-text .dots {
+  margin-left: 4px;
+  letter-spacing: 2px;
+  font-weight: normal;
+  color: var(--accent);
+}
+
+.toy-bubble.koi {
+  background: radial-gradient(circle at 50% 40%, #4f8f86, #23514c 80%);
+}
+
+.toy-bubble.koi .art svg {
+  width: 92%;
+  height: 92%;
+}
+
+.koi-unknown {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(160deg, #3f6f6a, #23514c);
+}
+
+.boat-unknown {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(160deg, #cfe9ec, #a9d3d8);
 }
 
 .toy-bubble.water {
