@@ -25,6 +25,7 @@ export const icons = {
   ),
   check: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
   drop: svg('<path d="M12 3.5c3.5 4.3 6 7.6 6 10.5a6 6 0 0 1-12 0c0-2.9 2.5-6.2 6-10.5z"/>'),
+  refresh: svg('<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.6 4.5L20 16"/><path d="M20 20.5V16h-4.5"/>'),
 };
 
 /** Brush pictures: big, friendly, recognisable without words. */

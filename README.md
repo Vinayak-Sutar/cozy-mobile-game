@@ -42,6 +42,16 @@ Vite prints a `Network:` address, such as `http://192.168.0.212:5173`. Open it i
 
 The keep-screen-awake lock needs HTTPS, so over plain Wi-Fi the screen may dim if you only watch. The Android app wrapper will fix this.
 
+### Live on GitHub Pages
+
+Every push to `main` builds the app and publishes it with [.github/workflows/deploy.yml](.github/workflows/deploy.yml).
+
+- **One-time setup:** on GitHub, go to the repo's **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**.
+- **Live URL:** https://vinayak-sutar.github.io/cozy-mobile-game/
+- **Get latest version:** the Home screen has a button that shows the running build (commit and time).
+  - It checks `version.json` on the server, bypassing caches, and reloads from a fresh URL when a newer build is out, so you never need to clear the browser cache.
+  - It also checks quietly when the app opens or returns to the foreground, and lights up when an update is ready.
+
 ### Useful URL flags
 
 - `?debug=1` shows FPS, quality tier and buffer sizes, and exposes `window.drift` in the console.

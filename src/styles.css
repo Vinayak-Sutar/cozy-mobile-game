@@ -298,6 +298,71 @@ svg {
   opacity: 0.85;
 }
 
+.home-footer {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Development helper: reload to the newest deployed build. */
+.update-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px 7px 10px;
+  border-radius: 999px;
+  background: var(--surface-glass);
+  color: var(--ink-soft);
+  box-shadow: 0 4px 14px var(--drop);
+  text-align: left;
+  transition: transform 200ms var(--ease-bounce), color 200ms ease;
+}
+
+.update-btn:active {
+  transform: scale(0.95);
+}
+
+.update-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  flex: none;
+}
+
+.update-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.update-btn.busy .update-icon svg {
+  animation: spin 900ms linear infinite;
+}
+
+.update-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.update-text b {
+  font-size: 14px;
+  font-weight: var(--weight-bold);
+  color: var(--ink);
+}
+
+.update-text small {
+  font-size: 12px;
+}
+
+.update-btn.has-update .update-icon {
+  background: var(--accent);
+  color: var(--accent-ink);
+  animation: play-breathe 1.6s ease-in-out infinite;
+}
+
 .toy-grid {
   width: min(100%, 520px);
   margin-top: 18px;
