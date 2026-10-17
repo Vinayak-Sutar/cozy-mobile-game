@@ -1,7 +1,7 @@
 import { isTier, type Tier } from '../engine/quality';
 
-export type ToyId = 'glow' | 'paint' | 'brush' | 'pond' | 'water' | 'painter';
-export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond', 'water', 'painter'];
+export type ToyId = 'glow' | 'paint' | 'brush' | 'pond' | 'water' | 'painter' | 'window';
+export const TOY_IDS: ToyId[] = ['glow', 'paint', 'brush', 'pond', 'water', 'painter', 'window'];
 
 export type ThemeId = 'moonlit' | 'clay' | 'meadow' | 'dusk';
 export const THEME_IDS: ThemeId[] = ['moonlit', 'clay', 'meadow', 'dusk'];
@@ -55,11 +55,18 @@ export interface PainterProgress {
   made: Record<string, number>;
 }
 
+/** Hidden Picture: which pictures you've found, and which window comes next. */
+export interface PictureProgress {
+  next: number;
+  found: Record<string, number>;
+}
+
 export interface SaveData {
   settings: Settings;
   brush: BrushSettings;
   garden: GardenProgress;
   painter: PainterProgress;
+  pictures: PictureProgress;
   lastToy: ToyId | null;
   /** Last quality tier the device settled on in auto mode, so we start there next time. */
   tier: Tier | null;
@@ -82,6 +89,7 @@ function defaults(): SaveData {
     brush: { brush: 'soft', size: 1, color: 'rose', wetness: 'damp' },
     garden: { slots: emptySlots(), flowers: {} },
     painter: { granted: 0, made: {} },
+    pictures: { next: 0, found: {} },
     lastToy: null,
     tier: null,
     stats: { opens: 0, firstOpen: Date.now(), plays: {} },
@@ -143,6 +151,15 @@ function load(): SaveData {
       if (pp.made && typeof pp.made === 'object') {
         for (const [id, count] of Object.entries(pp.made)) {
           if (typeof count === 'number' && count > 0) data.painter.made[id] = Math.floor(count);
+        }
+      }
+    }
+    const pics = saved.pictures;
+    if (pics) {
+      data.pictures.next = typeof pics.next === 'number' && pics.next >= 0 ? Math.floor(pics.next) : 0;
+      if (pics.found && typeof pics.found === 'object') {
+        for (const [id, count] of Object.entries(pics.found)) {
+          if (typeof count === 'number' && count > 0) data.pictures.found[id] = Math.floor(count);
         }
       }
     }

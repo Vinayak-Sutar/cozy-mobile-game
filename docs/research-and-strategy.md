@@ -25,7 +25,7 @@ Each would be its own section. All are cozy: no timers, no failing, and progress
 | **Lantern Lights** | Guide matching coloured light into floating lanterns. Lit lanterns rise into a constellation. | Constellation album | M |
 | **Little Painter** (built: v1) | Pip asks for a colour. Mix red, yellow and blue in Pip's dish. A GPU probe reads the dish, and the paint is un-mixed back into red/yellow/blue amounts to compare proportions with the wish. | Colour book (12 colours); teaches colour mixing | S–M |
 | **Paper Boats** | Make currents to steer boats to the matching dock. Missed boats drift back. | Passengers and boat designs | M |
-| **Hidden Picture** | Swirl water to wash away mist and reveal a picture. | Picture album; great for toddlers | S |
+| **Hidden Picture** (built: v1) | A fogged-up window: wipe the fog (fluid dye) to reveal one of 8 drawn pictures. A probe grid measures how much is clear; drops trickle and clear trails. | Picture book (8 pictures); great for toddlers | S |
 | **Cloud Shepherd** | Push clouds over thirsty fields to make rain and rainbows. | Seasons and scenes | M |
 
 Every one of these needs the same shared pieces:
@@ -42,7 +42,9 @@ Built so far: **Water the Garden**.
 Then **Little Painter**.
 - Matching compares the paint *proportions* found by un-mixing, with a generous range for how much paint is used. Over-painting doesn't punish a child, but tints like pink still need "just a little".
 
-Next suggested: **Hidden Picture** (quick, great for toddlers) or **Lantern Lights**.
+Then **Hidden Picture**, as a foggy window that you wipe.
+
+Next suggested: **Lantern Lights** or **Feed the Koi**.
 
 ## What the market shows
 

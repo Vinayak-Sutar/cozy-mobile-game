@@ -50,6 +50,22 @@ const PIP_ART = `
   <ellipse cx="24" cy="54" rx="3" ry="1.7" fill="rgba(255,140,160,0.6)"/><ellipse cx="46" cy="54" rx="3" ry="1.7" fill="rgba(255,140,160,0.6)"/>
 </svg>`;
 
+const WINDOW_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <rect x="18" y="14" width="64" height="72" rx="6" fill="#dfe8f1" stroke="#c9a27a" stroke-width="6"/>
+  <clipPath id="wipe"><circle cx="46" cy="52" r="20"/></clipPath>
+  <g clip-path="url(#wipe)">
+    <rect x="18" y="14" width="64" height="72" fill="#a9d8f5"/>
+    <rect x="18" y="58" width="64" height="30" fill="#8fcf7e"/>
+    <circle cx="46" cy="56" r="10" fill="#f0a253"/>
+    <path d="M38 49 l3 -8 l4 6 z M54 49 l-3 -8 l-4 6 z" fill="#f0a253"/>
+    <path d="M42 56 q2 2 4 0 M48 56 q2 2 4 0" stroke="#4a3328" stroke-width="1.4" fill="none"/>
+  </g>
+  <circle cx="46" cy="52" r="20" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.8"/>
+  <ellipse cx="68" cy="66" rx="2" ry="2.6" fill="#ffffff" opacity="0.9"/>
+  <path d="M68 69 v12" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+</svg>`;
+
 /** Every new idea becomes its own section card here. */
 const SECTIONS: Section[] = [
   { id: 'glow', name: 'Glow' },
@@ -58,6 +74,7 @@ const SECTIONS: Section[] = [
   { id: 'pond', name: 'Pond', art: LILY_ART },
   { id: 'water', name: 'Water the Garden', art: GARDEN_ART },
   { id: 'painter', name: 'Little Painter', art: PIP_ART },
+  { id: 'window', name: 'Hidden Picture', art: WINDOW_ART },
 ];
 
 export interface ToyboxActions {

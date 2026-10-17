@@ -1393,6 +1393,28 @@ svg {
   height: 84%;
 }
 
+.picture-card canvas {
+  width: 60px;
+  height: 80px;
+  border-radius: 10px;
+}
+
+.fogged-thumb {
+  width: 60px;
+  height: 80px;
+  border-radius: 10px;
+  background: linear-gradient(160deg, #e6edf4, #c9d3de);
+}
+
+.toy-bubble.window {
+  background: #eaf1f7;
+}
+
+.toy-bubble.window .art svg {
+  width: 88%;
+  height: 88%;
+}
+
 .toy-bubble.water {
   background: linear-gradient(180deg, #9fcff0 0%, #fbeedd 62%, #8f6a48 62%, #7a5236 100%);
 }

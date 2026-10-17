@@ -11,6 +11,7 @@ import { AudioEngine } from './feel/audio';
 import { Haptics } from './feel/haptics';
 import { BrushPaint } from './toys/brushPaint';
 import { GlowInk } from './toys/glowInk';
+import { HiddenPicture } from './toys/hiddenPicture';
 import { LittlePainter } from './toys/littlePainter';
 import { MagicGarden } from './toys/magicGarden';
 import { WaterGarden } from './toys/waterGarden';
@@ -66,6 +67,7 @@ function boot(): void {
     pond: new MagicGarden(),
     water: new WaterGarden(),
     painter: new LittlePainter(),
+    window: new HiddenPicture(),
   };
   const backdrops = { glow: new GlowInk(), paint: new Watercolor() };
 

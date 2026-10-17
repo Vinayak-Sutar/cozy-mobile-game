@@ -12,6 +12,7 @@ The app opens on a **Home** screen whose background is live fluid, so you can sw
 | **Pond** | A night pond. Lift your finger to bloom a lily, and fireflies follow your touch. |
 | **Water the Garden** | An open garden under a big sky. Open the seed bag (bottom-left) and drag seeds and pots onto the six spots in the bed, or tap one and then tap a spot. Hold the little cloud and move it to rain on your plants; swirl elsewhere to make wind that blows the rain. Plants grow seed → sprout → bud → bloom, the garden is saved as you leave it, and long-pressing a plant picks it. Every bloom goes into the **Flower album** (top-right). |
 | **Little Painter** | Pip asks for a colour. Mix red, yellow and blue in Pip's dish until the ring around it fills. Pip drinks it and turns that colour, and it goes in your **Colour book**. Stuck? A hint shows which paints make it. Teaches colour mixing. |
+| **Hidden Picture** | The screen is a fogged-up window. Wipe it with your fingers to find the picture outside (a cat, a whale, a rocket, a rainbow, a snowman, an owl, a balloon, a duck). Drops trickle down the glass. Wipe most of it and the picture is revealed and added to your **Picture book**, then the fog rolls back with a new one. |
 
 - **In a toy:** hold the pause button (top-left) to open the pause menu: Keep playing, Clean paper, Settings, Toy box, Home. Holding instead of tapping keeps little hands from leaving by accident.
 - **Settings:**

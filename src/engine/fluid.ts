@@ -5,6 +5,7 @@ import curlSource from './shaders/curl.frag?raw';
 import divergenceSource from './shaders/divergence.frag?raw';
 import forceSource from './shaders/force.frag?raw';
 import gradientSubtractSource from './shaders/gradientSubtract.frag?raw';
+import mixToSource from './shaders/mixTo.frag?raw';
 import pressureSource from './shaders/pressure.frag?raw';
 import splatSource from './shaders/splat.frag?raw';
 import vorticitySource from './shaders/vorticity.frag?raw';
@@ -68,6 +69,7 @@ export class FluidSim {
   private readonly gradientProgram: Program;
   private readonly advectionProgram: Program;
   private readonly forceProgram: Program;
+  private readonly mixToProgram: Program;
 
   constructor(
     private readonly gpu: Gpu,
@@ -84,6 +86,7 @@ export class FluidSim {
     this.gradientProgram = gpu.program(gradientSubtractSource);
     this.advectionProgram = gpu.program(advectionSource, gpu.linearFiltering ? [] : ['MANUAL_FILTERING']);
     this.forceProgram = gpu.program(forceSource);
+    this.mixToProgram = gpu.program(mixToSource);
     this.initFramebuffers();
   }
 
@@ -140,6 +143,24 @@ export class FluidSim {
     this.clearProgram.bind();
     gl.uniform1i(this.clearProgram.u('uTexture'), this.dye.read.attach(0));
     gl.uniform1f(this.clearProgram.u('value'), factor);
+    this.gpu.blit(this.dye.write);
+    this.dye.swap();
+  }
+
+  /** Sets all dye to one colour at once (e.g. a window fully fogged up). */
+  fillDye(color: RGB): void {
+    this.gpu.clearFbo(this.dye.read, color);
+    this.gpu.clearFbo(this.dye.write, color);
+  }
+
+  /** Blends all dye toward `color` by `amount` (0..1); call each frame for a gradual change. */
+  mixDyeTo(color: RGB, amount: number): void {
+    const gl = this.gpu.gl;
+    gl.disable(gl.BLEND);
+    this.mixToProgram.bind();
+    gl.uniform1i(this.mixToProgram.u('uTexture'), this.dye.read.attach(0));
+    gl.uniform3f(this.mixToProgram.u('uTarget'), color[0], color[1], color[2]);
+    gl.uniform1f(this.mixToProgram.u('uAmount'), amount);
     this.gpu.blit(this.dye.write);
     this.dye.swap();
   }

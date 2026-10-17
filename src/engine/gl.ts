@@ -296,13 +296,36 @@ export class Gpu {
     this.deleteFbo(target.write);
   }
 
-  /** Clears a framebuffer to transparent black without drawing anything. */
-  clearFbo(target: FBO): void {
+  /** Clears a framebuffer to a colour (black by default) without drawing anything. */
+  clearFbo(target: FBO, color: readonly [number, number, number] = [0, 0, 0]): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
     gl.viewport(0, 0, target.width, target.height);
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(color[0], color[1], color[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  /** Uploads a 2D canvas as a texture (e.g. a picture drawn with canvas paths). Reuses `existing` if given. */
+  uploadCanvas(canvas: HTMLCanvasElement, existing: WebGLTexture | null = null): WebGLTexture {
+    const gl = this.gl;
+    const texture = existing ?? gl.createTexture();
+    if (!texture) throw new Error('Could not allocate texture');
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    return texture;
+  }
+
+  /** Binds a plain texture to a unit and returns the unit, ready for `uniform1i`. */
+  bindTexture(texture: WebGLTexture, unit: number): number {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    return unit;
   }
 
   /** Draws the full-screen quad into `target`, or the screen when `target` is null. */
