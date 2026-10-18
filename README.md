@@ -27,12 +27,13 @@ The last card, **Studio**, opens **Drift Studio**, a separate painting app (belo
 
 ## Drift Studio
 
-A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestones 1 (foundation) and 2 (make it yours)** are in:
+A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestones 1 (foundation), 2 (make it yours) and 3 (alive)** are in:
 
 - **Gallery:** your paintings, saved automatically in the browser (IndexedDB) after every pause and whenever the app is hidden. Reopening after a reload or crash goes straight back to the painting. **Earlier versions** keeps the last 5 snapshots (one each time you come back and paint, and every 10 minutes). Rename, duplicate and delete from a card's ⋯ menu.
 - **New painting:** Screen, Square 2048, Portrait 2:3, Landscape 3:2, Phone wallpaper, A4 print (300 dpi) or a custom size, up to 4096 px a side. Paper colour, texture (smooth, watercolour, canvas) or transparent.
 - **Canvas:** pinch to zoom and rotate (snaps to straight), drag with two fingers to move; the % button fits it back.
 - **Brushes:** 30 brushes in 7 sets: Sketch (pencils, charcoal, soft pastel), Ink (fineliner, technical pen, brush pen, calligraphy, dry ink), Paint (round, flat, gouache, **oil paint** and **palette knife** that blend the colours already there, dry brush), Airbrush, Marker, Light & magic (neon glow, stars, rainbow, flowers, hearts) and Nature (leaves, grass, clouds). Each is a tip shape plus a grain texture, with pressure and tilt from a stylus, speed and taper for fingers, and StreamLine smoothing. Each brush remembers its own size. **Smudge** and **Eraser** can use any brush's shape.
+- **Live watercolour** (its own brush set): Wet round, Wet wash, Spatter, Clean water and Lift paint into real flowing water (Drift's fluid solver, the shape of your canvas). Pigment spreads a little, darkens at wet edges and mixes where colours meet (blue and yellow make green). A wet bar shows while paint is wet: **Freeze** stops it moving, **Drips** lets it run down the page, **Re-wet layer** makes a layer's dry paint flow again, and **Dry now**. It also dries by itself after 7 quiet seconds, or when you use another tool. Undo steps back through wet strokes, and each dried wash is one undo step.
 - **Brush editor and My brushes:** *Edit* any brush or tap *+ New brush*: 13 tip shapes, and about 30 settings in six groups (shape, stroke, grain, pressure and speed, colour jitter and rainbow, wet mix, glow and blend), with a live sample stroke. Built-in brushes stay as they are; saving makes your own copy in **My brushes**.
 - **Tools** (the wand button):
   - **Symmetry:** Mirror, Mirror across, Four ways, Radial and Kaleidoscope (2–16 copies), with a centre you can drag. Paint, smudge, the eraser and QuickShape all follow it.
@@ -45,7 +46,16 @@ A painting app for artists at its own address, `…/studio/` ([live](https://vin
 - **Pen-only mode** turns on by itself when a stylus touches the screen: fingers then only move the canvas, and touch-and-hold still picks colours.
 - **Export:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
 
-Still to come: live watercolour and the Glow studio (milestone 3); time-lapse video and a guide (milestone 4).
+**Glow** (the second mode in the gallery) is painting with light, made from Drift's Glow:
+- The light stays (or fades, if you like), and **Freeze** holds it still.
+- Rainbow or one colour, size and brightness sliders, **Swirl** and **Flow**.
+- Symmetry and kaleidoscope around the middle of the screen, for neon mandalas.
+- Six night skies.
+- A tap opens a flower of light; hold still and light gathers into a glowing whirl.
+- Undo and clear.
+- Save as PNG/JPEG at screen size with the bloom, or **Keep in gallery** to carry on painting over it with brushes and layers.
+
+Still to come: time-lapse video and a guide (milestone 4).
 
 Research, design rules, task ideas and the roadmap are in [docs/research-and-strategy.md](docs/research-and-strategy.md).
 

@@ -111,7 +111,9 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
    - Symmetry: mirror, four ways, radial and kaleidoscope, with a movable centre.
    - QuickShape (line, arc, circle, ellipse, rectangle, triangle, polygon) and predictive stroke.
    - Fill bucket with tolerance and line-art mode; a reference window.
-3. **Alive:** live watercolour on our fluid solver (flows, freezes, dries, re-wets) and the Glow studio.
+3. **Alive** (built):
+   - Live watercolour on our fluid solver: five wet brushes; it freezes, drips, re-wets and dries.
+   - The Glow studio: light that stays, freeze, symmetry, skies, blooms, undo, export and keep in gallery.
 4. **Share:** time-lapse video (full and 30 s), the first-painting guide and a performance pass.
 
 **What sets it apart, from reviews of Procreate, Fresco, Infinite Painter, ibisPaint, Sketchbook and Kleki:**
@@ -123,6 +125,14 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
 **Notes from building milestone 1:**
 - **Wet paint (oil, palette knife)** uses the same carried-paint idea as smudge, plus a refill with the brush colour. It only picks up real paint, not empty canvas, so it stays opaque on a bare layer.
 - **QuickShape** fits a line, then a circle or ellipse (from the point cloud's main axes) against corners found by Ramer–Douglas–Peucker. A four-cornered shape with near-right angles becomes a true rectangle. Predictive stroke is a Gaussian smoothing along the line, mirrored at the ends so they stay put.
+- **Live watercolour:**
+  - A `FluidSim` on its own WebGL canvas, shaped like the painting (up to 1024 px on the short side). Pigment is stored as Beer–Lambert absorption, so washes multiply.
+  - It is shown, and dried, through *colour-to-alpha*: the most-absorbed channel sets the opacity. That way the dried paint is an ordinary transparent layer that looks the same over white paper.
+  - Re-wetting runs the same conversion backwards.
+  - The fluid is tuned calm (low curl, quick to settle), so it reads as watercolour, not ink in water.
+- **Glow studio:**
+  - With the light no longer fading, faint light drifting everywhere fogged the sky. A small pass fades only the faintest light each frame, and the bloom is tighter than the toy's.
+  - Symmetry copies share the brightness (1/√copies), so a mandala isn't many times brighter than one stroke.
 - **Smudge** carries a "loaded" brush. It lays its paint down and picks up what it passes over, both measured per distance moved, so smears fade naturally instead of dragging one colour forever.
 - **Export:** PNG is the default because it's lossless and keeps transparency. JPEG is offered for quick sharing.
 - **Memory:** canvas size and layer count are capped by a memory budget, since iOS caps a canvas at about 16.7 MP.

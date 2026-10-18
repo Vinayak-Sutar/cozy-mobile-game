@@ -19,6 +19,24 @@ export interface SymmetrySettings {
   cy: number;
 }
 
+/** Glow studio settings. */
+export interface GlowSettings {
+  /** Each stroke a new colour, instead of the picked one. */
+  rainbow: boolean;
+  /** 0..1 slider positions. */
+  size: number;
+  brightness: number;
+  /** How much the light curls (0..1). */
+  swirl: number;
+  /** How long it keeps drifting after you lift (0..1). */
+  flow: number;
+  /** Light slowly fades, like Drift's Glow; off keeps your picture. */
+  fade: boolean;
+  background: string;
+  symmetry: { mode: SymmetryMode; count: number };
+  tab: string;
+}
+
 export interface StudioPrefs {
   mode: ToolMode;
   tools: Record<ToolMode, ToolSettings>;
@@ -43,6 +61,7 @@ export interface StudioPrefs {
   /** Fill what you see on all layers, or only this layer's paint. */
   fillSample: 'all' | 'layer';
   toolsTab: string;
+  glow: GlowSettings;
 }
 
 const KEY = 'drift.studio.prefs';
@@ -72,6 +91,17 @@ function defaults(): StudioPrefs {
     fillTolerance: 0.25,
     fillSample: 'all',
     toolsTab: 'symmetry',
+    glow: {
+      rainbow: true,
+      size: 0.45,
+      brightness: 0.55,
+      swirl: 0.45,
+      flow: 0.55,
+      fade: false,
+      background: 'night',
+      symmetry: { mode: 'off', count: 6 },
+      tab: 'light',
+    },
   };
 }
 
@@ -89,6 +119,7 @@ export function loadPrefs(): StudioPrefs {
       myPalette: Array.isArray(saved.myPalette) ? saved.myPalette.slice(0, 60) : [],
       brushSizes: saved.brushSizes && typeof saved.brushSizes === 'object' ? saved.brushSizes : {},
       symmetry: { ...base.symmetry, ...(saved.symmetry ?? {}) },
+      glow: { ...base.glow, ...(saved.glow ?? {}), symmetry: { ...base.glow.symmetry, ...(saved.glow?.symmetry ?? {}) } },
     };
   } catch {
     return base;

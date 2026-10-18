@@ -137,6 +137,24 @@ export class FluidSim {
     this.splatInto(this.dye, x, y, color, radiusScale);
   }
 
+  /**
+   * Splats with an absolute Gaussian `radius` (in squared screen heights, the
+   * shader's units) instead of a multiple of the toy's splat size. Used by
+   * Drift Studio, whose brushes are sized in canvas pixels.
+   */
+  splatDyeAt(x: number, y: number, color: RGB, radius: number): void {
+    this.stampRaw(this.splatProgram, this.dye.read, x, y, color, radius, 'add');
+  }
+
+  splatVelocityAt(x: number, y: number, dx: number, dy: number, radius: number): void {
+    this.stampRaw(this.splatProgram, this.velocity.read, x, y, [dx, dy, 0], radius, 'add');
+  }
+
+  liftDyeAt(x: number, y: number, strength: number, radius: number): void {
+    const k = Math.min(1, Math.max(0, strength));
+    this.stampRaw(this.liftProgram, this.dye.read, x, y, [k, k, k], radius, 'multiply');
+  }
+
   /** Pulls pigment out: each channel of existing dye is scaled by (1 - strength x falloff). Never goes negative. */
   liftDye(x: number, y: number, strength: number, radiusScale = 1): void {
     const k = Math.min(1, Math.max(0, strength));
@@ -320,8 +338,11 @@ export class FluidSim {
     radiusScale: number,
     blend: 'add' | 'multiply',
   ): void {
+    this.stampRaw(program, fbo, x, y, value, this.correctRadius((this.config.splatRadius / 100) * radiusScale), blend);
+  }
+
+  private stampRaw(program: Program, fbo: FBO, x: number, y: number, value: RGB, radius: number, blend: 'add' | 'multiply'): void {
     const gl = this.gpu.gl;
-    const radius = this.correctRadius((this.config.splatRadius / 100) * radiusScale);
     // Beyond ~3.2 standard widths the Gaussian is below 1e-4: invisible.
     const extentY = 3.2 * Math.sqrt(radius);
     const extentX = extentY / this.aspect;

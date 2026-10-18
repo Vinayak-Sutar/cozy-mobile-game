@@ -5,6 +5,7 @@ import { newId, PaintingDoc } from './doc/document';
 import { getPainting } from './doc/library';
 import { Editor } from './editor';
 import { Gallery } from './gallery';
+import { GlowStudio } from './glow/glowStudio';
 import { loadCustomBrushes, loadPrefs } from './tools';
 import type { NewPaintingSpec } from './ui/newPainting';
 
@@ -17,10 +18,32 @@ const prefs = loadPrefs();
 loadCustomBrushes();
 let gallery: Gallery | null = null;
 let editor: Editor | null = null;
+let glow: GlowStudio | null = null;
+
+type Route = { painting?: string; glow?: boolean } | null;
+const route = (): Route => history.state as Route;
 
 function showGallery(): void {
   if (gallery) return void gallery.refresh();
-  gallery = new Gallery(root, { open: (id) => void openPainting(id), create });
+  gallery = new Gallery(root, { open: (id) => void openPainting(id), create, glow: () => openGlow() });
+}
+
+/** The Glow studio: painting with light. */
+function openGlow(push = true): void {
+  hideGallery();
+  if (push) history.pushState({ glow: true }, '', '#glow');
+  glow = GlowStudio.create(root, prefs, {
+    onExit: () => {
+      glow = null;
+      if (route()?.glow) history.back();
+      else showGallery();
+    },
+  });
+  if (!glow) {
+    if (push) history.back();
+    else showGallery();
+    gallery?.toast('Glow needs WebGL, which this browser has turned off', 3000);
+  }
 }
 
 function hideGallery(): void {
@@ -37,7 +60,7 @@ function startEditor(doc: PaintingDoc, created: number, loaded: Map<string, Blob
     onExit: () => {
       editor = null;
       // Leaving with the on-screen button: step back so the phone's back button stays in step.
-      if ((history.state as { painting?: string } | null)?.painting) history.back();
+      if (route()?.painting) history.back();
       else showGallery();
     },
   });
@@ -76,7 +99,16 @@ async function openPainting(id: string, push = true): Promise<void> {
 }
 
 window.addEventListener('popstate', () => {
-  const id = (history.state as { painting?: string } | null)?.painting;
+  const state = route();
+  if (state?.glow) {
+    if (!glow) openGlow(false);
+    return;
+  }
+  if (glow) {
+    void glow.exit();
+    return;
+  }
+  const id = state?.painting;
   if (!id) {
     if (editor) void editor.exit();
     else showGallery();
@@ -87,7 +119,11 @@ window.addEventListener('popstate', () => {
 
 // Reopen the painting you were on (after a reload or a crash), with the gallery one step back.
 const resume = location.hash.slice(1);
-if (resume) {
+if (resume === 'glow') {
+  history.replaceState(null, '', location.pathname);
+  history.pushState({ glow: true }, '', '#glow');
+  openGlow(false);
+} else if (resume) {
   history.replaceState(null, '', location.pathname);
   history.pushState({ painting: resume }, '', `#${resume}`);
   void openPainting(resume, false);

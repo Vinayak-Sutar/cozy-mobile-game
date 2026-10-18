@@ -83,22 +83,27 @@ export class Gpu {
   private readonly programs = new Map<string, Program>();
   private readonly copyProgram: Program;
 
-  static create(canvas: HTMLCanvasElement): Gpu | null {
+  /** `alpha` gives a see-through canvas (for drawing over other things), `preserve` keeps the last frame readable. */
+  static create(canvas: HTMLCanvasElement, options: { alpha?: boolean; preserve?: boolean } = {}): Gpu | null {
     try {
-      return new Gpu(canvas);
+      return new Gpu(canvas, options);
     } catch (err) {
       console.error('[drift] WebGL init failed:', err);
       return null;
     }
   }
 
-  private constructor(readonly canvas: HTMLCanvasElement) {
+  private constructor(
+    readonly canvas: HTMLCanvasElement,
+    options: { alpha?: boolean; preserve?: boolean },
+  ) {
     const params: WebGLContextAttributes = {
-      alpha: false,
+      alpha: options.alpha ?? false,
+      premultipliedAlpha: true,
       depth: false,
       stencil: false,
       antialias: false,
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: options.preserve ?? false,
     };
     let gl: GL | null = canvas.getContext('webgl2', params);
     const isWebGL2 = !!gl;

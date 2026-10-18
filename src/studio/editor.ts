@@ -17,7 +17,9 @@ import { button, html, icons } from './ui/icons';
 import { LayersPanel } from './ui/layersPanel';
 import { ReferenceWindow } from './ui/reference';
 import { Sheet } from './ui/sheet';
+import { VSlider } from './ui/vslider';
 import { ToolsPanel } from './ui/toolsPanel';
+import { WetLayer, type WetStroke } from './wet/wetLayer';
 import { Compositor } from './view/compositor';
 import { Viewport } from './view/viewport';
 
@@ -26,6 +28,8 @@ const REFERENCE = 2000;
 const MIN_SIZE = 1;
 const MAX_SIZE = 600;
 const VERSION_EVERY = 10 * 60 * 1000;
+/** Live watercolour dries by itself after this many seconds without a touch. */
+const DRY_AFTER = 7;
 
 export interface EditorOptions {
   created: number;
@@ -76,6 +80,16 @@ export class Editor {
   /** The fill bucket is in use instead of a brush: a tap fills. */
   private fillActive = false;
   private fillAt: InputPoint | null = null;
+
+  // Live watercolour: the flowing paint, which layer it's on, and the stroke in progress.
+  private wet: WetLayer | null = null;
+  private wetLayerId: string | null = null;
+  private wetStroke: WetStroke | null = null;
+  /** The layer as it was before re-wetting (so undo and drying can put it back). */
+  private rewetEdit: TileEdit | null = null;
+  private rewetAt = 0;
+  private lastFrame = performance.now();
+  private readonly wetBar: HTMLElement;
 
   // Interface bits that change.
   private readonly undoBtn: HTMLButtonElement;
@@ -184,6 +198,9 @@ export class Editor {
     this.dragCentre(this.symHandle);
     this.el.append(this.symHandle, top, side, bottom, this.loupe, this.toastEl, this.sizePreview, this.showUi);
     this.reference = new ReferenceWindow(this.el, (c) => this.pickColor(c), () => this.toolsPanel?.render());
+    this.wetBar = document.createElement('div');
+    this.wetBar.className = 'st-wetbar st-hidden';
+    this.el.appendChild(this.wetBar);
     this.sheet = new Sheet(this.el);
 
     this.input = new StudioInput(this.canvas, {
@@ -232,12 +249,136 @@ export class Editor {
 
   private loop = (): void => {
     this.raf = requestAnimationFrame(this.loop);
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
+    this.lastFrame = now;
+    const wet = this.wet;
+    if (wet?.active) {
+      wet.step(dt);
+      // Dries by itself once you've left it alone for a while.
+      if (!this.wetStroke && wet.quiet > DRY_AFTER) this.dryWet();
+      else {
+        wet.render();
+        this.needsRender = true;
+        this.updateWetBar();
+      }
+    }
     if (!this.needsRender && !this.engine.active) return;
     this.needsRender = false;
     this.engine.takeFrame();
-    this.compositor.render(this.ctx, this.view, this.ratio, this.engine.live(), this.engine.area);
+    this.compositor.render(this.ctx, this.view, this.ratio, this.engine.live(), this.engine.area, wet?.active ? wet.canvas : null);
     this.drawGuides();
   };
+
+  // ---------- Live watercolour ----------
+
+  /** The wet layer for this painting, made the first time it's needed. */
+  private wetFor(layerId: string): WetLayer | null {
+    if (this.wet?.active && this.wetLayerId !== layerId) this.dryWet();
+    this.wet ??= WetLayer.create(this.doc.width, this.doc.height);
+    if (!this.wet) {
+      this.toast('Live watercolour needs WebGL, which this browser has turned off', 3000);
+      return null;
+    }
+    this.wetLayerId = layerId;
+    return this.wet;
+  }
+
+  /** Dries the live watercolour into its layer, as one undo step. */
+  private dryWet(): void {
+    const wet = this.wet;
+    if (!wet?.active) {
+      this.wetBar.classList.add('st-hidden');
+      return;
+    }
+    if (this.wetStroke) {
+      wet.end();
+      this.wetStroke = null;
+    }
+    const layer = this.doc.layers.find((l) => l.id === this.wetLayerId) ?? this.doc.activeLayer;
+    const dried = wet.dry();
+    const edit = this.rewetEdit ?? new TileEdit(layer, 'Watercolour');
+    this.rewetEdit = null;
+    if (dried) {
+      edit.capture(...dried.rect);
+      const ctx = layer.ctx;
+      ctx.save();
+      ctx.globalCompositeOperation = layer.alphaLock ? 'source-atop' : 'source-over';
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(dried.canvas, 0, 0, this.doc.width, this.doc.height);
+      ctx.restore();
+    }
+    if (!edit.empty) {
+      this.history.push(edit);
+      this.markLayer(layer.id);
+    }
+    this.wetLayerId = null;
+    this.wetBar.classList.add('st-hidden');
+    this.compositor.invalidate();
+    this.updateButtons();
+    this.pictureChanged();
+    this.render();
+  }
+
+  /** Re-wet: the active layer's dry paint becomes flowing watercolour again. */
+  private rewet(): void {
+    const layer = this.doc.activeLayer;
+    const wet = this.wetFor(layer.id);
+    if (!wet) return;
+    const edit = this.rewetEdit ?? new TileEdit(layer, 'Watercolour');
+    edit.capture(0, 0, this.doc.width, this.doc.height);
+    this.rewetEdit = edit;
+    wet.rewet(layer.canvas);
+    this.rewetAt = wet.undoDepth;
+    layer.ctx.clearRect(0, 0, this.doc.width, this.doc.height);
+    this.compositor.invalidate();
+    this.updateWetBar(true);
+    this.toast('The layer is wet again: its paint can flow');
+    this.render();
+  }
+
+  /** The bar that shows while paint is wet: freeze, drips, re-wet and dry. */
+  private updateWetBar(rebuild = false): void {
+    const wet = this.wet;
+    if (!wet?.active) {
+      this.wetBar.classList.add('st-hidden');
+      return;
+    }
+    const wasHidden = this.wetBar.classList.contains('st-hidden');
+    this.wetBar.classList.remove('st-hidden');
+    if (wasHidden || rebuild) {
+      const chip = (label: string, on: boolean, run: () => void): HTMLButtonElement => {
+        const b = document.createElement('button');
+        b.className = `st-wet-chip${on ? ' on' : ''}`;
+        b.textContent = label;
+        b.addEventListener('click', () => {
+          run();
+          this.updateWetBar(true);
+        });
+        return b;
+      };
+      const status = document.createElement('span');
+      status.className = 'st-wet-status';
+      this.wetBar.replaceChildren(
+        status,
+        chip(wet.frozen ? 'Frozen' : 'Freeze', wet.frozen, () => {
+          wet.frozen = !wet.frozen;
+          this.toast(wet.frozen ? 'Frozen: the paint stays wet but stops moving' : 'Flowing again');
+        }),
+        chip('Drips', wet.dripping, () => {
+          wet.setDrips(!wet.dripping);
+          this.toast(wet.dripping ? 'Drips on: wet paint runs down the page' : 'Drips off');
+        }),
+        chip('Re-wet layer', false, () => this.rewet()),
+        chip('Dry now', false, () => this.dryWet()),
+      );
+    }
+    const status = this.wetBar.querySelector('.st-wet-status') as HTMLElement | null;
+    if (status) {
+      const left = Math.max(0, Math.ceil(DRY_AFTER - wet.quiet));
+      status.textContent = this.wetStroke ? 'Wet' : `Wet · dries in ${left}s`;
+    }
+  }
 
   /** Dashed symmetry lines through the centre. */
   private drawGuides(): void {
@@ -358,6 +499,20 @@ export class Editor {
     const tool = this.prefs.tools[mode];
     const brush = brushById(tool.brush);
     const sym = this.prefs.symmetry;
+    const symmetry = symmetryTransforms({ mode: sym.mode, count: sym.count, x: sym.cx * this.doc.width, y: sym.cy * this.doc.height });
+    if (mode === 'paint' && brush.live) {
+      const wet = this.wetFor(layer.id);
+      if (!wet) return;
+      this.wetStroke = { kind: brush.live, color: this.prefs.color, size: tool.size * this.docScale, strength: tool.opacity, symmetry };
+      const [x, y] = this.view.toDoc(p.x, p.y);
+      wet.begin({ x, y, pressure: p.pressure ?? 1, t: p.t }, this.wetStroke);
+      this.updateWetBar();
+      this.updateButtons();
+      this.render();
+      return;
+    }
+    // Any other tool puts the wet paint down first.
+    this.dryWet();
     this.strokeSetup = {
       brush,
       size: tool.size * this.docScale,
@@ -365,7 +520,7 @@ export class Editor {
       color: this.prefs.color,
       mode,
       viewScale: this.view.scale,
-      symmetry: symmetryTransforms({ mode: sym.mode, count: sym.count, x: sym.cx * this.doc.width, y: sym.cy * this.doc.height }),
+      symmetry,
     };
     const first = this.toDoc(p);
     this.rawPoints = [first];
@@ -377,6 +532,16 @@ export class Editor {
   }
 
   private strokeMove(points: InputPoint[]): void {
+    if (this.wetStroke && this.wet) {
+      this.wet.move(
+        points.map((p) => {
+          const [x, y] = this.view.toDoc(p.x, p.y);
+          return { x, y, pressure: p.pressure ?? 1, t: p.t };
+        }),
+        this.wetStroke,
+      );
+      return;
+    }
     if (!this.engine.active || this.snapped) return;
     const doc = points.map((p) => this.toDoc(p));
     if (this.rawPoints.length < 20000) this.rawPoints.push(...doc);
@@ -425,6 +590,15 @@ export class Editor {
       if (at) this.fill(at);
       return;
     }
+    if (this.wetStroke) {
+      this.wet?.end();
+      this.wetStroke = null;
+      if (this.prefs.mode === 'paint') {
+        pushRecent(this.prefs, this.prefs.color);
+        savePrefs(this.prefs);
+      }
+      return;
+    }
     if (!this.engine.active) return;
     // Predictive stroke: tidy the wobbles of the whole line before it's put down.
     const strength = this.prefs.predictive;
@@ -450,6 +624,7 @@ export class Editor {
 
   /** The fill bucket: fills the area under `p` on the active layer. */
   private fill(p: InputPoint): void {
+    this.dryWet();
     const layer = this.doc.activeLayer;
     if (!layer.visible) {
       this.toast('This layer is hidden');
@@ -514,6 +689,14 @@ export class Editor {
 
   private strokeCancel(): void {
     this.fillAt = null;
+    if (this.wetStroke) {
+      // A two-finger gesture started with one finger: take the touch back.
+      this.wet?.undo();
+      this.wet?.end();
+      this.wetStroke = null;
+      this.updateButtons();
+      return;
+    }
     if (!this.engine.active) return;
     this.strokeSetup = null;
     this.rawPoints = [];
@@ -525,14 +708,32 @@ export class Editor {
   }
 
   private undo(): void {
-    if (this.engine.active) return;
+    if (this.engine.active || this.wetStroke) return;
+    const wet = this.wet;
+    if (wet?.active && wet.canUndo) {
+      wet.undo();
+      // Undoing past a re-wet puts the layer's dry paint back.
+      if (this.rewetEdit && wet.undoDepth < this.rewetAt) {
+        this.rewetEdit.undo();
+        this.rewetEdit = null;
+        this.compositor.invalidate();
+      }
+      if (!wet.canUndo) wet.clearAll();
+      this.toast('Undo watercolour');
+      this.updateButtons();
+      this.updateWetBar();
+      this.render();
+      return;
+    }
+    this.dryWet();
     const label = this.history.undo();
     this.toast(label ? `Undo ${label.toLowerCase()}` : 'Nothing to undo');
     this.afterHistory();
   }
 
   private redo(): void {
-    if (this.engine.active) return;
+    if (this.engine.active || this.wetStroke) return;
+    this.dryWet();
     const label = this.history.redo();
     this.toast(label ? `Redo ${label.toLowerCase()}` : 'Nothing to redo');
     this.afterHistory();
@@ -628,7 +829,7 @@ export class Editor {
   }
 
   private updateButtons(): void {
-    this.undoBtn.disabled = !this.history.canUndo;
+    this.undoBtn.disabled = !this.history.canUndo && !this.wet?.canUndo;
     this.redoBtn.disabled = !this.history.canRedo;
   }
 
@@ -750,6 +951,7 @@ export class Editor {
   }
 
   private openLayers(): void {
+    this.dryWet();
     const doc = this.doc;
     const push = (label: string, undo: () => void, redo: () => void): void => {
       this.history.push(new ActionEdit(label, undo, redo));
@@ -933,6 +1135,7 @@ export class Editor {
   }
 
   private openExport(): void {
+    this.dryWet();
     const doc = this.doc;
     let format: ImageFormat = 'png';
     let scale = 1;
@@ -1097,7 +1300,10 @@ export class Editor {
   }
 
   private hidden = (e: Event): void => {
-    if (e.type === 'pagehide' || document.visibilityState === 'hidden') void this.save();
+    if (e.type === 'pagehide' || document.visibilityState === 'hidden') {
+      this.dryWet();
+      void this.save();
+    }
   };
 
   meta(thumb?: Blob): PaintingMeta {
@@ -1162,6 +1368,7 @@ export class Editor {
     if (this.exiting) return;
     this.exiting = true;
     this.sheet.close();
+    this.dryWet();
     await this.save();
     this.destroy();
     this.options.onExit();
@@ -1174,47 +1381,7 @@ export class Editor {
     document.removeEventListener('visibilitychange', this.hidden);
     window.removeEventListener('pagehide', this.hidden);
     this.compositor.dispose();
+    this.wet?.dispose();
     this.el.remove();
-  }
-}
-
-/** A vertical slider on the edge of the screen (brush size, opacity), 0..1. */
-class VSlider {
-  readonly el: HTMLElement;
-  private readonly fill: HTMLElement;
-  private readonly thumb: HTMLElement;
-  private value = 0.5;
-
-  constructor(label: string, onChange: (value: number, done: boolean) => void) {
-    this.el = document.createElement('div');
-    this.el.className = 'st-vslider';
-    this.el.setAttribute('aria-label', label);
-    this.fill = document.createElement('div');
-    this.fill.className = 'fill';
-    this.thumb = document.createElement('div');
-    this.thumb.className = 'thumb';
-    const text = document.createElement('label');
-    text.textContent = label;
-    this.el.append(this.fill, this.thumb, text);
-    const pick = (e: PointerEvent, done: boolean): void => {
-      const rect = this.el.getBoundingClientRect();
-      this.set(1 - (e.clientY - rect.top - 9) / (rect.height - 18));
-      onChange(this.value, done);
-    };
-    this.el.addEventListener('pointerdown', (e) => {
-      this.el.setPointerCapture(e.pointerId);
-      pick(e, false);
-    });
-    this.el.addEventListener('pointermove', (e) => {
-      if (this.el.hasPointerCapture(e.pointerId)) pick(e, false);
-    });
-    this.el.addEventListener('pointerup', (e) => pick(e, true));
-  }
-
-  set(value: number): void {
-    this.value = Math.min(1, Math.max(0, value));
-    const h = 150 - 18;
-    this.thumb.style.top = `${(1 - this.value) * h}px`;
-    this.fill.style.height = `${this.value * (150 - 8)}px`;
   }
 }

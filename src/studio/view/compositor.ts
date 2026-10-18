@@ -101,7 +101,15 @@ export class Compositor {
     ctx.drawImage(this.doc.activeLayer.canvas, 0, 0);
   }
 
-  render(target: CanvasRenderingContext2D, view: Viewport, ratio: number, stroke: LiveStroke | null, strokeRect: Rect | null): void {
+  /** `wet` is live watercolour lying on the active layer (drawn as if it were part of it). */
+  render(
+    target: CanvasRenderingContext2D,
+    view: Viewport,
+    ratio: number,
+    stroke: LiveStroke | null,
+    strokeRect: Rect | null,
+    wet: CanvasImageSource | null = null,
+  ): void {
     const { width, height } = this.doc;
     if (this.belowDirty) this.rebuildBelow();
     const canvas = target.canvas;
@@ -130,6 +138,11 @@ export class Compositor {
     const active = this.doc.activeLayer;
     if (stroke && strokeRect) this.drawLayer(target, active, this.activeWithStroke(stroke, strokeRect));
     else this.drawLayer(target, active);
+    if (wet && active.visible) {
+      target.globalCompositeOperation = active.blend;
+      target.globalAlpha = active.opacity;
+      target.drawImage(wet, 0, 0, width, height);
+    }
     for (let i = this.doc.active + 1; i < this.doc.layers.length; i++) this.drawLayer(target, this.doc.layers[i]);
     target.globalCompositeOperation = 'source-over';
     target.globalAlpha = 1;

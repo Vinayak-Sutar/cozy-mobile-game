@@ -7,6 +7,7 @@ import { Sheet } from './ui/sheet';
 export interface GalleryActions {
   open(id: string): void;
   create(spec: NewPaintingSpec, name: string): void;
+  glow(): void;
 }
 
 /** The studio's home: your paintings, newest first, and the button to start a new one. */
@@ -44,8 +45,8 @@ export class Gallery {
     paint.addEventListener('click', () => this.newPainting());
     const glow = document.createElement('button');
     glow.className = 'st-mode';
-    glow.innerHTML = '<strong>Glow</strong><span>Painting with light · coming soon</span>';
-    glow.addEventListener('click', () => this.toast('Glow studio arrives in the next update'));
+    glow.innerHTML = '<strong>Glow</strong><span>Painting with light</span>';
+    glow.addEventListener('click', () => this.actions.glow());
     modes.append(paint, glow);
 
     this.grid = document.createElement('div');

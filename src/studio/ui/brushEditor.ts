@@ -3,7 +3,7 @@ import { GRAINS, type Grain, TIP_KINDS, TIP_SIZE, tipMask, type TipKind } from '
 import { context, makeCanvas } from '../doc/document';
 import { darkBackdrop, paintSample } from './brushPanel';
 
-type NumberKey = { [K in keyof Brush]: Brush[K] extends number ? K : never }[keyof Brush];
+type NumberKey = { [K in keyof Brush]-?: Brush[K] extends number ? K : never }[keyof Brush];
 
 interface SliderSpec {
   key: NumberKey;

@@ -1,5 +1,5 @@
 import { BrushEngine } from '../brush/engine';
-import { type Brush, brushesIn, brushSets, isCustom, MY_SET } from '../brush/presets';
+import { type Brush, brushesIn, brushSets, isCustom, LIVE_SET, MY_SET } from '../brush/presets';
 import { hexToRgb } from '../color';
 import { context, type Layer, makeCanvas } from '../doc/document';
 import { savePrefs, type StudioPrefs } from '../tools';
@@ -27,7 +27,9 @@ export function paintSample(target: HTMLCanvasElement, brush: Brush, color: stri
     tiltY: 0,
     t: k * 600,
   });
-  engine.begin(layer, { brush, size, opacity: brush.opacity, color, mode: 'paint', viewScale: 1 }, point(0), null);
+  // Water and lifting have no colour of their own: show them as a pale wash.
+  const shown = brush.live === 'water' ? '#9fc3d9' : brush.live === 'lift' ? '#d8cfc2' : color;
+  engine.begin(layer, { brush, size, opacity: brush.opacity, color: shown, mode: 'paint', viewScale: 1 }, point(0), null);
   const points = [];
   for (let i = 1; i <= 80; i++) points.push(point(i / 80));
   engine.add(points);
@@ -104,6 +106,8 @@ export class BrushPanel {
     const edit = document.createElement('button');
     edit.className = 'st-chip-btn';
     edit.textContent = `Edit ${current.name}`;
+    edit.disabled = !!current.live;
+    if (current.live) edit.style.opacity = '0.4';
     edit.addEventListener('click', () => this.actions.edit(current));
     const create = document.createElement('button');
     create.className = 'st-chip-btn';
@@ -135,7 +139,11 @@ export class BrushPanel {
     const note = document.createElement('p');
     note.className = 'st-note';
     note.textContent =
-      this.prefs.mode === 'paint' ? 'Pick a brush to paint with.' : `Pick the brush shape for ${this.prefs.mode === 'erase' ? 'the eraser' : 'smudging'}.`;
+      this.prefs.brushSet === LIVE_SET
+        ? 'Live watercolour flows like real water while it is wet, then dries into the layer. Use the wet bar at the top to freeze it, let it drip, or dry it now.'
+        : this.prefs.mode === 'paint'
+          ? 'Pick a brush to paint with.'
+          : `Pick the brush shape for ${this.prefs.mode === 'erase' ? 'the eraser' : 'smudging'}.`;
     this.el.replaceChildren(note, tabs, head, list);
   }
 }

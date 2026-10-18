@@ -33,6 +33,10 @@ export const icons = {
   rename: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
   tools: svg('<path d="m4 20 10-10"/><path d="m14 10 2 2"/><path d="M15 4v2M19 8h2M15 4l.5 2M18.5 4.5 17 6M20 11l-2-.5"/><path d="M17.5 3.5l3 3"/>'),
   fill: svg('<path d="m5 11 7-7 8 8-7 7a2.1 2.1 0 0 1-3 0l-5-5a2.1 2.1 0 0 1 0-3z"/><path d="M5 11h15"/><path d="M20 16s2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1 2-3.5 2-3.5z"/>'),
+  freeze: svg('<path d="M12 2v20M4.5 6.5l15 11M19.5 6.5l-15 11"/><path d="m9 4 3 2 3-2M9 20l3-2 3 2M3.5 10.5l3.5.5-1.3 3.3M20.5 10.5 17 11l1.3 3.3"/>'),
+  wind: svg('<path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 12h15a3 3 0 1 1-3 3"/><path d="M3 16h7"/>'),
+  moon: svg('<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/>'),
+  sparkle: svg('<path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="m6 6 2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>'),
   palette: svg('<path d="M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.2-1.9-.5-1.1.2-2.1 1.4-2.1H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/>'),
 };
 

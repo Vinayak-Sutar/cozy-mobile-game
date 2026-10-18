@@ -1,3 +1,4 @@
+import type { WetKind } from '../wet/wetLayer';
 import type { Grain, TipKind } from './tips';
 
 export type AngleMode = 'fixed' | 'stroke' | 'random' | 'tilt';
@@ -50,6 +51,11 @@ export interface Brush {
   glow: number;
   /** Wet paint (oil): 0 = plain paint; higher picks up and blends the colours already there. */
   wetMix: number;
+  /**
+   * Live watercolour: paints into flowing water (the fluid simulation)
+   * instead of stamping dabs. The other settings only draw its sample stroke.
+   */
+  live?: WetKind;
 }
 
 const BASE: Brush = {
@@ -95,7 +101,8 @@ const brush = (b: Partial<Brush> & Pick<Brush, 'id' | 'name' | 'set'>): Brush =>
 export const completeBrush = (b: Partial<Brush> & Pick<Brush, 'id' | 'name' | 'set'>): Brush => brush(b);
 
 export const MY_SET = 'My brushes';
-export const SETS = ['Sketch', 'Ink', 'Paint', 'Airbrush', 'Marker', 'Light & magic', 'Nature'];
+export const LIVE_SET = 'Live watercolour';
+export const SETS = ['Sketch', 'Ink', 'Paint', LIVE_SET, 'Airbrush', 'Marker', 'Light & magic', 'Nature'];
 
 export const BRUSHES: Brush[] = [
   brush({ id: 'pencil-hb', name: 'HB pencil', set: 'Sketch', tip: 'pencil', size: 5, hardness: 1, flow: 0.55, opacity: 0.9, spacing: 0.08, pressureSize: 0.25, pressureOpacity: 0.65, grain: 'pencil', grainDepth: 0.7, streamline: 0.15 }),
@@ -114,6 +121,11 @@ export const BRUSHES: Brush[] = [
   brush({ id: 'oil', name: 'Oil paint', set: 'Paint', tip: 'bristle', size: 40, flow: 0.9, spacing: 0.05, angleMode: 'stroke', angle: 90, pressureSize: 0.3, pressureOpacity: 0.4, wetMix: 0.55, streamline: 0.1 }),
   brush({ id: 'knife', name: 'Palette knife', set: 'Paint', tip: 'flat', size: 50, hardness: 1, roundness: 0.3, spacing: 0.04, angleMode: 'stroke', angle: 90, pressureSize: 0.1, wetMix: 0.75, streamline: 0.15 }),
   brush({ id: 'dry-brush', name: 'Dry brush', set: 'Paint', tip: 'bristle', size: 46, flow: 0.6, spacing: 0.07, angleMode: 'stroke', angle: 90, pressureSize: 0.25, pressureOpacity: 0.5, grain: 'rough', grainDepth: 0.7, grainScale: 1.4, streamline: 0.1 }),
+  brush({ id: 'wet-round', name: 'Wet round', set: LIVE_SET, live: 'paint', tip: 'round', size: 40, hardness: 0.3, flow: 0.3, spacing: 0.06, pressureSize: 0.5, grain: 'paper', grainDepth: 0.3 }),
+  brush({ id: 'wet-wash', name: 'Wet wash', set: LIVE_SET, live: 'wash', tip: 'round', size: 150, hardness: 0, flow: 0.08, spacing: 0.06, pressureSize: 0.3, grain: 'paper', grainDepth: 0.3 }),
+  brush({ id: 'wet-spatter', name: 'Spatter', set: LIVE_SET, live: 'spatter', tip: 'spray', size: 40, flow: 0.5, spacing: 0.3, angleMode: 'random', streamline: 0 }),
+  brush({ id: 'clean-water', name: 'Clean water', set: LIVE_SET, live: 'water', tip: 'round', size: 60, hardness: 0, flow: 0.1, spacing: 0.06 }),
+  brush({ id: 'wet-lift', name: 'Lift', set: LIVE_SET, live: 'lift', tip: 'round', size: 50, hardness: 0.2, flow: 0.12, spacing: 0.06 }),
   brush({ id: 'soft-air', name: 'Soft airbrush', set: 'Airbrush', tip: 'round', size: 140, hardness: 0, flow: 0.07, spacing: 0.06, pressureSize: 0.1, pressureOpacity: 0.7, streamline: 0.1 }),
   brush({ id: 'hard-air', name: 'Hard airbrush', set: 'Airbrush', tip: 'round', size: 40, hardness: 0.9, flow: 0.12, spacing: 0.05, pressureSize: 0.1, pressureOpacity: 0.7, streamline: 0.1 }),
   brush({ id: 'spray', name: 'Spray can', set: 'Airbrush', tip: 'spray', size: 70, flow: 0.45, spacing: 0.18, angleMode: 'random', pressureSize: 0.2, pressureOpacity: 0.5, streamline: 0 }),
