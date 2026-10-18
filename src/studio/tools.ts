@@ -1,4 +1,6 @@
 import type { ToolMode } from './brush/engine';
+import { type Brush, completeBrush, setCustomBrushes } from './brush/presets';
+import type { SymmetryMode } from './brush/symmetry';
 
 /** One tool's own brush, size and opacity (paint, smudge and erase each remember theirs). */
 export interface ToolSettings {
@@ -6,6 +8,15 @@ export interface ToolSettings {
   /** Size in pixels on a canvas 2000 px across; scaled to each painting. */
   size: number;
   opacity: number;
+}
+
+export interface SymmetrySettings {
+  mode: SymmetryMode;
+  /** Copies around the centre, for radial and kaleidoscope. */
+  count: number;
+  /** The centre, as a fraction of the painting's width and height. */
+  cx: number;
+  cy: number;
 }
 
 export interface StudioPrefs {
@@ -22,9 +33,20 @@ export interface StudioPrefs {
   brushSizes: Record<string, { size: number; opacity: number }>;
   penOnly: boolean;
   seenHelp: boolean;
+  symmetry: SymmetrySettings;
+  /** Hold at the end of a stroke to snap it to a line, circle or shape. */
+  quickShape: boolean;
+  /** Tidies wobbly lines when you lift (0 off .. 1 strong). */
+  predictive: number;
+  /** Fill bucket: how different a colour can be and still get filled (0..1). */
+  fillTolerance: number;
+  /** Fill what you see on all layers, or only this layer's paint. */
+  fillSample: 'all' | 'layer';
+  toolsTab: string;
 }
 
 const KEY = 'drift.studio.prefs';
+const BRUSHES_KEY = 'drift.studio.brushes';
 
 function defaults(): StudioPrefs {
   return {
@@ -44,6 +66,12 @@ function defaults(): StudioPrefs {
     brushSizes: {},
     penOnly: false,
     seenHelp: false,
+    symmetry: { mode: 'off', count: 6, cx: 0.5, cy: 0.5 },
+    quickShape: true,
+    predictive: 0,
+    fillTolerance: 0.25,
+    fillSample: 'all',
+    toolsTab: 'symmetry',
   };
 }
 
@@ -60,6 +88,7 @@ export function loadPrefs(): StudioPrefs {
       recent: Array.isArray(saved.recent) ? saved.recent.slice(0, 10) : [],
       myPalette: Array.isArray(saved.myPalette) ? saved.myPalette.slice(0, 60) : [],
       brushSizes: saved.brushSizes && typeof saved.brushSizes === 'object' ? saved.brushSizes : {},
+      symmetry: { ...base.symmetry, ...(saved.symmetry ?? {}) },
     };
   } catch {
     return base;
@@ -77,4 +106,26 @@ export function savePrefs(prefs: StudioPrefs): void {
 /** Remembers a colour you used, newest first, no repeats. */
 export function pushRecent(prefs: StudioPrefs, color: string): void {
   prefs.recent = [color, ...prefs.recent.filter((c) => c.toLowerCase() !== color.toLowerCase())].slice(0, 10);
+}
+
+/** Your own brushes (My brushes), loaded into the brush list. */
+export function loadCustomBrushes(): void {
+  try {
+    const raw = localStorage.getItem(BRUSHES_KEY);
+    const list = raw ? (JSON.parse(raw) as Brush[]) : [];
+    setCustomBrushes(Array.isArray(list) ? list.filter((b) => b && b.id && b.name).map((b) => completeBrush(b)) : []);
+  } catch {
+    setCustomBrushes([]);
+  }
+}
+
+/** Saves My brushes; false if the browser's storage is full or blocked. */
+export function saveCustomBrushes(list: Brush[]): boolean {
+  setCustomBrushes(list);
+  try {
+    localStorage.setItem(BRUSHES_KEY, JSON.stringify(list));
+    return true;
+  } catch {
+    return false;
+  }
 }

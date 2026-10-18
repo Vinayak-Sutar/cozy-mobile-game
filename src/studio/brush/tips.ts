@@ -4,8 +4,12 @@ import { context, makeCanvas } from '../doc/document';
  * Brush tips (the shape of one dab) and grains (the paper texture that
  * shows through the paint). Tips are white masks with alpha, made once.
  */
-export type TipKind = 'round' | 'pencil' | 'charcoal' | 'chalk' | 'flat' | 'bristle' | 'spray' | 'star' | 'leaf' | 'flower' | 'heart';
+export type TipKind = 'round' | 'pencil' | 'charcoal' | 'chalk' | 'flat' | 'bristle' | 'spray' | 'star' | 'leaf' | 'flower' | 'heart' | 'grass' | 'cloud';
+
+/** Every tip, in the order the brush editor shows them. */
+export const TIP_KINDS: TipKind[] = ['round', 'pencil', 'charcoal', 'chalk', 'flat', 'bristle', 'spray', 'cloud', 'grass', 'leaf', 'flower', 'star', 'heart'];
 export type Grain = 'none' | 'paper' | 'canvas' | 'pencil' | 'rough';
+export const GRAINS: Grain[] = ['none', 'paper', 'canvas', 'pencil', 'rough'];
 
 export const TIP_SIZE = 256;
 
@@ -146,6 +150,42 @@ export function tipMask(kind: TipKind, hardness: number): HTMLCanvasElement {
       ctx.beginPath();
       ctx.arc(c, c, r * 0.16, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'grass': {
+      // A tuft of blades growing up from the bottom of the tip.
+      for (let i = 0; i < 9; i++) {
+        const base = c + (random() - 0.5) * r * 0.9;
+        const lean = (random() - 0.5) * r * 0.9;
+        const top = c - r * (0.45 + random() * 0.5);
+        const w = 5 + random() * 7;
+        ctx.globalAlpha = 0.6 + random() * 0.4;
+        ctx.beginPath();
+        ctx.moveTo(base - w, c + r * 0.95);
+        ctx.quadraticCurveTo(base - w * 0.3 + lean * 0.4, (top + c) / 2, base + lean, top);
+        ctx.quadraticCurveTo(base + w * 0.3 + lean * 0.4, (top + c) / 2, base + w, c + r * 0.95);
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+    }
+    case 'cloud': {
+      // Soft overlapping puffs.
+      for (let i = 0; i < 7; i++) {
+        const a = random() * Math.PI * 2;
+        const d = Math.sqrt(random()) * r * 0.45;
+        const pr = r * (0.3 + random() * 0.25);
+        const x = c + Math.cos(a) * d;
+        const y = c + Math.sin(a) * d * 0.7;
+        const g = ctx.createRadialGradient(x, y, 0, x, y, pr);
+        g.addColorStop(0, 'rgba(255,255,255,0.75)');
+        g.addColorStop(0.6, 'rgba(255,255,255,0.45)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, pr, 0, Math.PI * 2);
+        ctx.fill();
+      }
       break;
     }
     case 'heart': {

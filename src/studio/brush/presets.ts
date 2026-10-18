@@ -48,6 +48,8 @@ export interface Brush {
   blend: GlobalCompositeOperation;
   /** A soft halo around each dab (neon). */
   glow: number;
+  /** Wet paint (oil): 0 = plain paint; higher picks up and blends the colours already there. */
+  wetMix: number;
 }
 
 const BASE: Brush = {
@@ -84,30 +86,70 @@ const BASE: Brush = {
   streamline: 0.2,
   blend: 'source-over',
   glow: 0,
+  wetMix: 0,
 };
 
 const brush = (b: Partial<Brush> & Pick<Brush, 'id' | 'name' | 'set'>): Brush => ({ ...BASE, ...b });
 
-export const SETS = ['Sketch', 'Ink', 'Paint', 'Airbrush', 'Marker', 'Light & magic'];
+/** Fills in any settings a saved brush is missing (from an older version). */
+export const completeBrush = (b: Partial<Brush> & Pick<Brush, 'id' | 'name' | 'set'>): Brush => brush(b);
+
+export const MY_SET = 'My brushes';
+export const SETS = ['Sketch', 'Ink', 'Paint', 'Airbrush', 'Marker', 'Light & magic', 'Nature'];
 
 export const BRUSHES: Brush[] = [
   brush({ id: 'pencil-hb', name: 'HB pencil', set: 'Sketch', tip: 'pencil', size: 5, hardness: 1, flow: 0.55, opacity: 0.9, spacing: 0.08, pressureSize: 0.25, pressureOpacity: 0.65, grain: 'pencil', grainDepth: 0.7, streamline: 0.15 }),
   brush({ id: 'pencil-6b', name: '6B pencil', set: 'Sketch', tip: 'pencil', size: 13, flow: 0.7, spacing: 0.08, pressureSize: 0.45, pressureOpacity: 0.5, grain: 'paper', grainDepth: 0.65, grainScale: 0.8, streamline: 0.1 }),
+  brush({ id: 'pencil-mech', name: 'Mechanical pencil', set: 'Sketch', tip: 'pencil', size: 3, hardness: 1, flow: 0.7, spacing: 0.06, pressureSize: 0.15, pressureOpacity: 0.55, minSize: 0.6, grain: 'pencil', grainDepth: 0.5, streamline: 0.25 }),
+  brush({ id: 'pastel', name: 'Soft pastel', set: 'Sketch', tip: 'chalk', size: 40, flow: 0.75, spacing: 0.08, angleMode: 'random', pressureSize: 0.3, pressureOpacity: 0.45, grain: 'rough', grainDepth: 0.6, grainScale: 1.3, streamline: 0.05 }),
   brush({ id: 'charcoal', name: 'Charcoal', set: 'Sketch', tip: 'charcoal', size: 24, flow: 0.6, spacing: 0.12, angleMode: 'random', pressureSize: 0.4, pressureOpacity: 0.4, grain: 'rough', grainDepth: 0.75, streamline: 0.05 }),
   brush({ id: 'tech-pen', name: 'Technical pen', set: 'Ink', tip: 'round', size: 4, hardness: 1, spacing: 0.05, pressureSize: 0.15, minSize: 0.6, streamline: 0.5 }),
+  brush({ id: 'fineliner', name: 'Fineliner', set: 'Ink', tip: 'round', size: 3, hardness: 1, spacing: 0.04, pressureSize: 0, streamline: 0.55 }),
+  brush({ id: 'dry-ink', name: 'Dry ink', set: 'Ink', tip: 'round', size: 12, hardness: 0.9, spacing: 0.05, pressureSize: 0.7, minSize: 0.15, taperEnd: 0.5, grain: 'rough', grainDepth: 0.45, streamline: 0.3 }),
   brush({ id: 'brush-pen', name: 'Brush pen', set: 'Ink', tip: 'round', size: 16, hardness: 0.95, spacing: 0.04, pressureSize: 0.9, minSize: 0.08, speedSize: 0.55, taperStart: 0.6, taperEnd: 0.7, streamline: 0.45 }),
   brush({ id: 'calligraphy', name: 'Calligraphy nib', set: 'Ink', tip: 'flat', size: 22, hardness: 1, spacing: 0.04, angle: 40, angleMode: 'fixed', roundness: 0.22, pressureSize: 0.4, minSize: 0.45, streamline: 0.4 }),
   brush({ id: 'round', name: 'Round brush', set: 'Paint', tip: 'round', size: 30, hardness: 0.65, flow: 0.85, spacing: 0.08, pressureSize: 0.45, pressureOpacity: 0.2, streamline: 0.15 }),
   brush({ id: 'flat', name: 'Flat brush', set: 'Paint', tip: 'bristle', size: 44, flow: 0.8, spacing: 0.06, angleMode: 'stroke', angle: 90, pressureSize: 0.3, pressureOpacity: 0.3, grain: 'canvas', grainDepth: 0.35, streamline: 0.1 }),
   brush({ id: 'gouache', name: 'Gouache', set: 'Paint', tip: 'chalk', size: 36, flow: 0.9, spacing: 0.07, angleMode: 'stroke', roundness: 0.8, pressureSize: 0.35, grain: 'paper', grainDepth: 0.3, streamline: 0.1 }),
+  brush({ id: 'oil', name: 'Oil paint', set: 'Paint', tip: 'bristle', size: 40, flow: 0.9, spacing: 0.05, angleMode: 'stroke', angle: 90, pressureSize: 0.3, pressureOpacity: 0.4, wetMix: 0.55, streamline: 0.1 }),
+  brush({ id: 'knife', name: 'Palette knife', set: 'Paint', tip: 'flat', size: 50, hardness: 1, roundness: 0.3, spacing: 0.04, angleMode: 'stroke', angle: 90, pressureSize: 0.1, wetMix: 0.75, streamline: 0.15 }),
+  brush({ id: 'dry-brush', name: 'Dry brush', set: 'Paint', tip: 'bristle', size: 46, flow: 0.6, spacing: 0.07, angleMode: 'stroke', angle: 90, pressureSize: 0.25, pressureOpacity: 0.5, grain: 'rough', grainDepth: 0.7, grainScale: 1.4, streamline: 0.1 }),
   brush({ id: 'soft-air', name: 'Soft airbrush', set: 'Airbrush', tip: 'round', size: 140, hardness: 0, flow: 0.07, spacing: 0.06, pressureSize: 0.1, pressureOpacity: 0.7, streamline: 0.1 }),
+  brush({ id: 'hard-air', name: 'Hard airbrush', set: 'Airbrush', tip: 'round', size: 40, hardness: 0.9, flow: 0.12, spacing: 0.05, pressureSize: 0.1, pressureOpacity: 0.7, streamline: 0.1 }),
   brush({ id: 'spray', name: 'Spray can', set: 'Airbrush', tip: 'spray', size: 70, flow: 0.45, spacing: 0.18, angleMode: 'random', pressureSize: 0.2, pressureOpacity: 0.5, streamline: 0 }),
   brush({ id: 'marker', name: 'Alcohol marker', set: 'Marker', tip: 'round', size: 26, hardness: 0.85, spacing: 0.05, opacity: 0.55, pressureSize: 0.15, minSize: 0.7, blend: 'multiply', streamline: 0.2 }),
+  brush({ id: 'felt', name: 'Felt tip', set: 'Marker', tip: 'round', size: 12, hardness: 0.9, opacity: 0.9, spacing: 0.05, pressureSize: 0.1, minSize: 0.8, grain: 'paper', grainDepth: 0.2, streamline: 0.3 }),
   brush({ id: 'highlighter', name: 'Highlighter', set: 'Marker', tip: 'flat', size: 30, hardness: 1, spacing: 0.05, opacity: 0.45, angle: 90, roundness: 0.35, pressureSize: 0, blend: 'multiply', streamline: 0.35 }),
   brush({ id: 'neon', name: 'Neon glow', set: 'Light & magic', tip: 'round', size: 10, hardness: 0.6, spacing: 0.06, pressureSize: 0.3, glow: 1, blend: 'lighter', streamline: 0.35 }),
   brush({ id: 'stars', name: 'Sparkle stars', set: 'Light & magic', tip: 'star', size: 26, spacing: 1.3, scatter: 1.4, angleMode: 'random', jitterSize: 0.6, jitterHue: 0.08, jitterLight: 0.2, pressureSize: 0.3, streamline: 0 }),
   brush({ id: 'rainbow', name: 'Rainbow ribbon', set: 'Light & magic', tip: 'round', size: 26, hardness: 0.75, spacing: 0.05, hueShift: 1.2, pressureSize: 0.4, streamline: 0.4 }),
-  brush({ id: 'leaves', name: 'Leaves', set: 'Light & magic', tip: 'leaf', size: 30, spacing: 0.9, scatter: 0.6, angleMode: 'stroke', angleJitter: 50, jitterSize: 0.4, jitterHue: 0.06, jitterLight: 0.25, pressureSize: 0.3, streamline: 0 }),
+  brush({ id: 'flowers', name: 'Flowers', set: 'Light & magic', tip: 'flower', size: 30, spacing: 1.1, scatter: 0.9, angleMode: 'random', jitterSize: 0.5, jitterHue: 0.1, jitterLight: 0.2, pressureSize: 0.3, streamline: 0 }),
+  brush({ id: 'hearts', name: 'Hearts', set: 'Light & magic', tip: 'heart', size: 24, spacing: 1.4, scatter: 1, angleJitter: 40, jitterSize: 0.5, jitterHue: 0.05, pressureSize: 0.3, streamline: 0 }),
+  brush({ id: 'leaves', name: 'Leaves', set: 'Nature', tip: 'leaf', size: 30, spacing: 0.9, scatter: 0.6, angleMode: 'stroke', angleJitter: 50, jitterSize: 0.4, jitterHue: 0.06, jitterLight: 0.25, pressureSize: 0.3, streamline: 0 }),
+  brush({ id: 'grass', name: 'Grass', set: 'Nature', tip: 'grass', size: 40, spacing: 0.25, scatter: 0.3, angleJitter: 20, jitterSize: 0.3, jitterHue: 0.04, jitterLight: 0.25, pressureSize: 0.4, streamline: 0 }),
+  brush({ id: 'clouds', name: 'Clouds', set: 'Nature', tip: 'cloud', size: 90, flow: 0.25, spacing: 0.2, scatter: 0.5, angleMode: 'random', jitterSize: 0.4, pressureSize: 0.3, pressureOpacity: 0.4, streamline: 0.1 }),
 ];
 
-export const brushById = (id: string): Brush => BRUSHES.find((b) => b.id === id) ?? BRUSHES[0];
+/** Brushes you made or changed, kept in the browser (see tools.ts). */
+let custom: Brush[] = [];
+
+export function customBrushes(): Brush[] {
+  return custom;
+}
+
+export function setCustomBrushes(list: Brush[]): void {
+  custom = list;
+}
+
+/** The sets to show: your own brushes first, when you have any. */
+export function brushSets(): string[] {
+  return custom.length ? [MY_SET, ...SETS] : SETS;
+}
+
+export function brushesIn(set: string): Brush[] {
+  return set === MY_SET ? custom : BRUSHES.filter((b) => b.set === set);
+}
+
+export const brushById = (id: string): Brush => custom.find((b) => b.id === id) ?? BRUSHES.find((b) => b.id === id) ?? BRUSHES[0];
+
+export const isCustom = (id: string): boolean => custom.some((b) => b.id === id);

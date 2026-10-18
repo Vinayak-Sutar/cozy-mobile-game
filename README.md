@@ -27,19 +27,25 @@ The last card, **Studio**, opens **Drift Studio**, a separate painting app (belo
 
 ## Drift Studio
 
-A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestone 1 (foundation)** is in:
+A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestones 1 (foundation) and 2 (make it yours)** are in:
 
 - **Gallery:** your paintings, saved automatically in the browser (IndexedDB) after every pause and whenever the app is hidden. Reopening after a reload or crash goes straight back to the painting. **Earlier versions** keeps the last 5 snapshots (one each time you come back and paint, and every 10 minutes). Rename, duplicate and delete from a card's ⋯ menu.
 - **New painting:** Screen, Square 2048, Portrait 2:3, Landscape 3:2, Phone wallpaper, A4 print (300 dpi) or a custom size, up to 4096 px a side. Paper colour, texture (smooth, watercolour, canvas) or transparent.
 - **Canvas:** pinch to zoom and rotate (snaps to straight), drag with two fingers to move; the % button fits it back.
-- **Brushes:** 17 brushes in 6 sets (pencils, charcoal, inks, brush pen, calligraphy, round, flat, gouache, airbrush, spray, markers, highlighter, neon glow, stars, rainbow, leaves). Each is a tip shape plus a grain texture, with pressure and tilt from a stylus, speed and taper for fingers, and StreamLine smoothing. Each brush remembers its own size. **Smudge** and **Eraser** can use any brush's shape.
+- **Brushes:** 30 brushes in 7 sets: Sketch (pencils, charcoal, soft pastel), Ink (fineliner, technical pen, brush pen, calligraphy, dry ink), Paint (round, flat, gouache, **oil paint** and **palette knife** that blend the colours already there, dry brush), Airbrush, Marker, Light & magic (neon glow, stars, rainbow, flowers, hearts) and Nature (leaves, grass, clouds). Each is a tip shape plus a grain texture, with pressure and tilt from a stylus, speed and taper for fingers, and StreamLine smoothing. Each brush remembers its own size. **Smudge** and **Eraser** can use any brush's shape.
+- **Brush editor and My brushes:** *Edit* any brush or tap *+ New brush*: 13 tip shapes, and about 30 settings in six groups (shape, stroke, grain, pressure and speed, colour jitter and rainbow, wet mix, glow and blend), with a live sample stroke. Built-in brushes stay as they are; saving makes your own copy in **My brushes**.
+- **Tools** (the wand button):
+  - **Symmetry:** Mirror, Mirror across, Four ways, Radial and Kaleidoscope (2–16 copies), with a centre you can drag. Paint, smudge, the eraser and QuickShape all follow it.
+  - **Fill bucket:** tap an area to fill it, with a tolerance, looking at all layers (to colour line art from another layer) or just this one. The fill tucks under soft line edges, so there's no halo.
+  - **Drawing help:** **QuickShape**: draw a line, arc, circle, ellipse, rectangle or triangle and hold still at the end, and it snaps clean. **Predictive stroke** tidies wobbly lines when you lift.
+  - **Reference:** a floating window with a picture from your device or the whole painting. Drag it, resize it, and tap it to pick colours.
 - **Colour:** a disc, HSV/RGB sliders with hex, harmony suggestions, 8 built-in palettes plus your own, and the last 10 colours. Touch and hold the canvas to pick a colour.
 - **Layers:** up to 16 (fewer on huge canvases or low-memory phones), with opacity, 16 blend modes, alpha lock, reorder, duplicate, merge down, clear and hide.
 - **Undo and redo:** buttons, or tap with two fingers (undo) or three (redo). Four fingers hides the interface.
 - **Pen-only mode** turns on by itself when a stylus touches the screen: fingers then only move the canvas, and touch-and-hold still picks colours.
 - **Export:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
 
-Still to come: the brush editor and *My brushes*, more brushes, symmetry and kaleidoscope, QuickShape, fill, a reference window (milestone 2); live watercolour and the Glow studio (milestone 3); time-lapse video and a guide (milestone 4).
+Still to come: live watercolour and the Glow studio (milestone 3); time-lapse video and a guide (milestone 4).
 
 Research, design rules, task ideas and the roadmap are in [docs/research-and-strategy.md](docs/research-and-strategy.md).
 

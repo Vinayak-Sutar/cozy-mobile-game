@@ -31,6 +31,8 @@ export const icons = {
   paper: svg('<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/>'),
   versions: svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>'),
   rename: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+  tools: svg('<path d="m4 20 10-10"/><path d="m14 10 2 2"/><path d="M15 4v2M19 8h2M15 4l.5 2M18.5 4.5 17 6M20 11l-2-.5"/><path d="M17.5 3.5l3 3"/>'),
+  fill: svg('<path d="m5 11 7-7 8 8-7 7a2.1 2.1 0 0 1-3 0l-5-5a2.1 2.1 0 0 1 0-3z"/><path d="M5 11h15"/><path d="M20 16s2 2.4 2 3.5a2 2 0 0 1-4 0c0-1.1 2-3.5 2-3.5z"/>'),
   palette: svg('<path d="M12 3a9 9 0 0 0 0 18c1.2 0 1.6-.9 1.2-1.9-.5-1.1.2-2.1 1.4-2.1H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/>'),
 };
 

@@ -26,6 +26,8 @@ export interface StrokeSetup {
   mode: ToolMode;
   /** Screen pixels per canvas pixel, so speed feels the same at any zoom. */
   viewScale: number;
+  /** Symmetry: every dab is also painted through each of these transforms (the first is usually the identity). */
+  symmetry?: DOMMatrix[] | null;
 }
 
 interface Dab {
@@ -38,11 +40,22 @@ interface Dab {
   dist: number;
 }
 
+/** The paint a smudging or wet brush carries, one per symmetry copy. */
+interface Carry {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  size: number;
+  last: { x: number; y: number } | null;
+}
+
+const MAX_DAB = 512;
+
 /**
  * Paints a stroke as a trail of dabs (stamps of the brush tip), like
  * Procreate and Kleki. Dabs go onto a separate stroke canvas, which is
  * combined with the layer when the stroke ends, so a marker's opacity
- * doesn't stack within one stroke. Smudge works on the layer directly.
+ * doesn't stack within one stroke. Smudge and wet paint (oil) work on the
+ * layer directly, because they mix with what's already there.
  */
 export class BrushEngine {
   readonly stroke: HTMLCanvasElement;
@@ -51,12 +64,12 @@ export class BrushEngine {
   private grainedCtx: CanvasRenderingContext2D | null = null;
   private readonly scratch: HTMLCanvasElement;
   private readonly scratchCtx: CanvasRenderingContext2D;
-  /** The paint a smudge brush is carrying. */
-  private readonly loaded: HTMLCanvasElement;
-  private readonly loadedCtx: CanvasRenderingContext2D;
-  private loadedSize = 0;
+  private readonly dabMask: HTMLCanvasElement;
+  private readonly dabMaskCtx: CanvasRenderingContext2D;
+  private carries: Carry[] = [];
 
   private setup: StrokeSetup | null = null;
+  private transforms: DOMMatrix[] | null = null;
   private layer: Layer | null = null;
   private edit: TileEdit | null = null;
   private dabs: Dab[] = [];
@@ -66,7 +79,6 @@ export class BrushEngine {
   private smoothY = 0;
   private prev = { x: 0, y: 0, p: 1, t: 0, tiltX: 0, tiltY: 0 };
   private lastRaw = { x: 0, y: 0, t: 0 };
-  private lastDab: { x: number; y: number } | null = null;
   private carry = 0;
   private dist = 0;
   private speed = 0;
@@ -80,10 +92,10 @@ export class BrushEngine {
   ) {
     this.stroke = makeCanvas(width, height);
     this.strokeCtx = context(this.stroke);
-    this.scratch = makeCanvas(512, 512);
+    this.scratch = makeCanvas(MAX_DAB, MAX_DAB);
     this.scratchCtx = context(this.scratch);
-    this.loaded = makeCanvas(512, 512);
-    this.loadedCtx = context(this.loaded);
+    this.dabMask = makeCanvas(MAX_DAB, MAX_DAB);
+    this.dabMaskCtx = context(this.dabMask);
   }
 
   get active(): boolean {
@@ -94,6 +106,12 @@ export class BrushEngine {
     return this.setup?.mode ?? null;
   }
 
+  /** Smudge and wet paint change the layer as they go, instead of using the stroke canvas. */
+  get smearing(): boolean {
+    const s = this.setup;
+    return !!s && (s.mode === 'smudge' || (s.mode === 'paint' && s.brush.wetMix > 0));
+  }
+
   private random(): number {
     this.seed = (this.seed * 16807) % 2147483647;
     return (this.seed - 1) / 2147483646;
@@ -101,6 +119,7 @@ export class BrushEngine {
 
   begin(layer: Layer, setup: StrokeSetup, p: DocPoint, edit: TileEdit | null): void {
     this.setup = setup;
+    this.transforms = setup.symmetry && setup.symmetry.length ? setup.symmetry : null;
     this.layer = layer;
     this.edit = edit;
     this.dabs = [];
@@ -112,13 +131,13 @@ export class BrushEngine {
     this.smoothY = p.y;
     this.prev = { x: p.x, y: p.y, p: this.pressureOf(p), t: p.t, tiltX: p.tiltX, tiltY: p.tiltY };
     this.lastRaw = { x: p.x, y: p.y, t: p.t };
-    this.lastDab = null;
+    for (const c of this.carries) c.last = null;
     this.carry = 0;
     this.dist = 0;
     this.speed = 0;
     this.bounds = null;
     this.frame = null;
-    if (b.grain !== 'none' && b.grainDepth > 0 && setup.mode !== 'smudge' && !this.grained) {
+    if (b.grain !== 'none' && b.grainDepth > 0 && !this.smearing && !this.grained) {
       this.grained = makeCanvas(this.width, this.height);
       this.grainedCtx = context(this.grained);
     }
@@ -205,7 +224,7 @@ export class BrushEngine {
       }
       const color = this.plainColor ? setup.color : this.colorAt(dist);
       const dab: Dab = { x: px, y: py, size, alpha, angle, color, dist };
-      if (setup.mode === 'smudge') this.smudge(dab);
+      if (this.smearing) this.smearAll(dab);
       else {
         this.dabs.push(dab);
         this.stamp(dab);
@@ -241,75 +260,136 @@ export class BrushEngine {
       s.globalCompositeOperation = 'source-over';
       tip = this.scratch;
     }
-    if (b.glow > 0 && setup.mode !== 'erase') {
-      const halo = colouredTip(tipMask('round', 0), 'round:0', color);
-      const hs = dab.size * 3.2;
-      ctx.globalAlpha = Math.min(1, dab.alpha * 0.16 * b.glow);
-      ctx.drawImage(halo, dab.x - hs / 2, dab.y - hs / 2, hs, hs);
-    }
-    ctx.globalAlpha = Math.min(1, dab.alpha);
+    const halo = b.glow > 0 && setup.mode !== 'erase' ? colouredTip(tipMask('round', 0), 'round:0', color) : null;
     const s = dab.size;
-    if (dab.angle === 0 && b.roundness === 1) {
-      ctx.drawImage(tip, 0, 0, TIP_SIZE, TIP_SIZE, dab.x - s / 2, dab.y - s / 2, s, s);
-    } else {
-      ctx.save();
-      ctx.translate(dab.x, dab.y);
-      ctx.rotate(dab.angle);
-      ctx.scale(1, b.roundness);
-      ctx.drawImage(tip, 0, 0, TIP_SIZE, TIP_SIZE, -s / 2, -s / 2, s, s);
-      ctx.restore();
+    const r = s * (halo ? 1.7 : 0.75) + 2;
+    // With symmetry the same dab is drawn through each mirror or turn.
+    for (const t of this.transforms ?? [null]) {
+      if (t) ctx.setTransform(t);
+      if (halo) {
+        const hs = s * 3.2;
+        ctx.globalAlpha = Math.min(1, dab.alpha * 0.16 * b.glow);
+        ctx.drawImage(halo, dab.x - hs / 2, dab.y - hs / 2, hs, hs);
+      }
+      ctx.globalAlpha = Math.min(1, dab.alpha);
+      if (dab.angle === 0 && b.roundness === 1) {
+        ctx.drawImage(tip, 0, 0, TIP_SIZE, TIP_SIZE, dab.x - s / 2, dab.y - s / 2, s, s);
+      } else {
+        ctx.save();
+        ctx.translate(dab.x, dab.y);
+        ctx.rotate(dab.angle);
+        ctx.scale(1, b.roundness);
+        ctx.drawImage(tip, 0, 0, TIP_SIZE, TIP_SIZE, -s / 2, -s / 2, s, s);
+        ctx.restore();
+      }
+      this.grow(t ? transformRect(t, dab.x, dab.y, r) : [dab.x - r, dab.y - r, r * 2, r * 2]);
     }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
-    const r = s * (b.glow > 0 ? 1.7 : 0.75) + 2;
-    this.grow([dab.x - r, dab.y - r, r * 2, r * 2]);
+  }
+
+  /** Smudge or wet paint at the dab, and at each of its symmetry copies. */
+  private smearAll(dab: Dab): void {
+    const ts = this.transforms;
+    if (!ts) {
+      this.smear(0, dab);
+      return;
+    }
+    for (let i = 0; i < ts.length; i++) {
+      const t = ts[i];
+      const p = t.transformPoint(new DOMPoint(dab.x, dab.y));
+      // Turn the tip with the copy (mirrors flip its direction).
+      const angle = Math.atan2(t.b * Math.cos(dab.angle) + t.d * Math.sin(dab.angle), t.a * Math.cos(dab.angle) + t.c * Math.sin(dab.angle));
+      this.smear(i, { ...dab, x: p.x, y: p.y, angle });
+    }
+  }
+
+  private carryFor(i: number, size: number): Carry {
+    let c = this.carries[i];
+    if (!c) {
+      const canvas = makeCanvas(size, size);
+      c = { canvas, ctx: context(canvas), size, last: null };
+      this.carries[i] = c;
+    } else if (c.canvas.width < size) {
+      // Growing a canvas clears it, so keep what it carried.
+      const keep = makeCanvas(c.canvas.width, c.canvas.height);
+      context(keep).drawImage(c.canvas, 0, 0);
+      c.canvas.width = c.canvas.height = size;
+      c.ctx.drawImage(keep, 0, 0);
+    }
+    return c;
   }
 
   /**
-   * Smudge, like a wet finger: the brush picks up the paint where it lands,
-   * lays it down as it moves, and slowly takes on the colours it passes over,
-   * so smears fade out instead of dragging one colour forever.
+   * Smudge (like a wet finger) and wet paint (like oil). The brush carries
+   * paint: it lays it down as it moves and picks up the colours it passes
+   * over, so smears fade out and colours blend. A wet brush is also topped
+   * up with its own colour. Rates are per distance moved, so a smear looks
+   * the same whatever the brush spacing or pointer speed.
    */
-  private smudge(dab: Dab): void {
+  private smear(index: number, dab: Dab): void {
     const layer = this.layer!;
     const setup = this.setup!;
-    const s = Math.min(512, Math.max(2, Math.round(dab.size)));
+    const b = setup.brush;
+    const wet = setup.mode === 'paint';
+    const s = Math.min(MAX_DAB, Math.max(2, Math.round(dab.size)));
     const x = Math.round(dab.x - s / 2);
     const y = Math.round(dab.y - s / 2);
-    const lc = this.loadedCtx;
+    const c = this.carryFor(index, s);
+    const lc = c.ctx;
     const sc = this.scratchCtx;
-    const previous = this.lastDab;
-    if (!previous) {
-      this.lastDab = { x: dab.x, y: dab.y };
+    let tenths: number;
+    if (!c.last) {
+      // Load the brush: a wet brush with its paint, a smudge with what's under it.
+      lc.globalAlpha = 1;
       lc.globalCompositeOperation = 'copy';
-      lc.drawImage(layer.canvas, x, y, s, s, 0, 0, s, s);
+      if (wet) {
+        lc.fillStyle = dab.color;
+        lc.fillRect(0, 0, s, s);
+      } else {
+        lc.drawImage(layer.canvas, x, y, s, s, 0, 0, s, s);
+      }
       lc.globalCompositeOperation = 'source-over';
-      this.loadedSize = s;
-      return;
+      c.size = s;
+      c.last = { x: dab.x, y: dab.y };
+      if (!wet) return;
+      tenths = 1;
+    } else {
+      tenths = Math.hypot(dab.x - c.last.x, dab.y - c.last.y) / s / 0.1;
+      if (tenths < 0.01) return;
+      c.last = { x: dab.x, y: dab.y };
     }
-    if (s !== this.loadedSize) {
+    if (s !== c.size) {
       // Pressure changed the size: stretch the carried paint to match.
       sc.globalCompositeOperation = 'copy';
-      sc.drawImage(this.loaded, 0, 0, this.loadedSize, this.loadedSize, 0, 0, s, s);
+      sc.drawImage(c.canvas, 0, 0, c.size, c.size, 0, 0, s, s);
       lc.globalCompositeOperation = 'copy';
       lc.drawImage(this.scratch, 0, 0, s, s, 0, 0, s, s);
       lc.globalCompositeOperation = 'source-over';
-      this.loadedSize = s;
+      sc.globalCompositeOperation = 'source-over';
+      c.size = s;
     }
     const strength = Math.min(1, setup.opacity);
-    // Both rates are per distance moved (in tenths of the brush size), so a
-    // smear looks the same whatever the brush spacing or pointer speed.
-    const tenths = Math.hypot(dab.x - previous.x, dab.y - previous.y) / s / 0.1;
-    if (tenths < 0.01) return;
-    this.lastDab = { x: dab.x, y: dab.y };
-    const lay = 1 - Math.pow(1 - strength * 0.16 * Math.max(0.3, dab.alpha), tenths);
-    const pick = 1 - Math.pow(1 - (0.09 + (1 - strength) * 0.25), tenths);
-    const mask = tipMask(setup.brush.tip, setup.brush.hardness);
+    const per = (rate: number): number => 1 - Math.pow(1 - Math.min(0.95, Math.max(0, rate)), tenths);
+    const lay = wet ? per(0.45 * dab.alpha) * strength : per(strength * 0.16 * Math.max(0.3, dab.alpha));
+    const pick = wet ? per(0.12 * b.wetMix) : per(0.09 + (1 - strength) * 0.25);
+    const refill = wet ? per(0.02 + 0.2 * (1 - b.wetMix)) : 0;
+
+    // The tip's shape for this dab, turned and squashed like a normal dab.
+    const m = this.dabMaskCtx;
+    m.setTransform(1, 0, 0, 1, 0, 0);
+    m.clearRect(0, 0, s, s);
+    m.translate(s / 2, s / 2);
+    m.rotate(dab.angle);
+    m.scale(1, b.roundness);
+    m.drawImage(tipMask(b.tip, b.hardness), -s / 2, -s / 2, s, s);
+    m.setTransform(1, 0, 0, 1, 0, 0);
 
     // Lay the carried paint down through the tip: layer = layer * (1 - a) + paint * a.
     sc.globalCompositeOperation = 'copy';
-    sc.drawImage(this.loaded, 0, 0, s, s, 0, 0, s, s);
+    sc.drawImage(c.canvas, 0, 0, s, s, 0, 0, s, s);
     sc.globalCompositeOperation = 'destination-in';
-    sc.drawImage(mask, 0, 0, TIP_SIZE, TIP_SIZE, 0, 0, s, s);
+    sc.drawImage(this.dabMask, 0, 0, s, s, 0, 0, s, s);
     sc.globalCompositeOperation = 'source-over';
     this.edit?.capture(x, y, s, s);
     const ctx = layer.ctx;
@@ -318,23 +398,34 @@ export class BrushEngine {
       ctx.globalCompositeOperation = 'source-atop';
     } else {
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.drawImage(mask, 0, 0, TIP_SIZE, TIP_SIZE, x, y, s, s);
+      ctx.drawImage(this.dabMask, 0, 0, s, s, x, y, s, s);
       ctx.globalCompositeOperation = 'lighter';
     }
     ctx.drawImage(this.scratch, 0, 0, s, s, x, y, s, s);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
-    // Pick up some of what is here: paint = paint * (1 - k) + here * k.
+    // Pick up some of what is here. A smudge takes on clear areas too
+    // (paint = paint * (1 - k) + here * k), so smears fade out; wet paint only
+    // mixes with paint that's really there, so bare canvas doesn't thin it.
     if (pick > 0.001) {
       lc.globalAlpha = pick;
-      lc.globalCompositeOperation = 'destination-out';
-      lc.fillRect(0, 0, s, s);
-      lc.globalCompositeOperation = 'lighter';
+      if (!wet) {
+        lc.globalCompositeOperation = 'destination-out';
+        lc.fillRect(0, 0, s, s);
+        lc.globalCompositeOperation = 'lighter';
+      }
       lc.drawImage(layer.canvas, x, y, s, s, 0, 0, s, s);
-      lc.globalAlpha = 1;
-      lc.globalCompositeOperation = 'source-over';
     }
+    // A wet brush keeps some of its own colour: paint = paint * (1 - r) + colour * r.
+    if (refill > 0.001) {
+      lc.globalAlpha = refill;
+      lc.globalCompositeOperation = 'source-over';
+      lc.fillStyle = dab.color;
+      lc.fillRect(0, 0, s, s);
+    }
+    lc.globalAlpha = 1;
+    lc.globalCompositeOperation = 'source-over';
     this.grow([x, y, s, s]);
   }
 
@@ -347,7 +438,7 @@ export class BrushEngine {
   takeFrame(): Rect | null {
     const frame = this.frame ? clampRect(this.frame, this.width, this.height) : null;
     this.frame = null;
-    if (frame && this.grained) this.applyGrain(frame);
+    if (frame && this.grained && this.usesGrain) this.applyGrain(frame);
     return frame;
   }
 
@@ -378,13 +469,13 @@ export class BrushEngine {
 
   private get usesGrain(): boolean {
     const b = this.setup?.brush;
-    return !!b && b.grain !== 'none' && b.grainDepth > 0 && this.setup?.mode !== 'smudge';
+    return !!b && b.grain !== 'none' && b.grainDepth > 0 && !this.smearing;
   }
 
   /** What the screen should show on top of the layer while the stroke is going. */
   live(): LiveStroke | null {
     const setup = this.setup;
-    if (!setup || setup.mode === 'smudge') return null;
+    if (!setup || this.smearing) return null;
     return {
       canvas: this.usesGrain && this.grained ? this.grained : this.stroke,
       opacity: setup.opacity,
@@ -399,10 +490,11 @@ export class BrushEngine {
     if (!setup || !layer) return null;
     // Catch up with the finger, so the line ends where it lifted.
     this.walk(this.lastRaw.x, this.lastRaw.y, this.prev.p, this.prev.tiltX, this.prev.tiltY, this.lastRaw.t);
-    if (setup.brush.taperEnd > 0 && setup.mode !== 'smudge' && this.dabs.length < 8000) this.taperEnd();
+    const smearing = this.smearing;
+    if (setup.brush.taperEnd > 0 && !smearing && this.dabs.length < 8000) this.taperEnd();
     const rect = this.area;
-    if (rect && setup.mode !== 'smudge') {
-      if (this.grained) this.applyGrain(rect);
+    if (rect && !smearing) {
+      if (this.grained && this.usesGrain) this.applyGrain(rect);
       const [x, y, w, h] = rect;
       this.edit?.capture(x, y, w, h);
       const ctx = layer.ctx;
@@ -448,12 +540,35 @@ export class BrushEngine {
       this.grainedCtx?.clearRect(...rect);
     }
     this.setup = null;
+    this.transforms = null;
     this.layer = null;
     this.edit = null;
     this.dabs = [];
     this.bounds = null;
     this.frame = null;
   }
+}
+
+/** The bounding box of a dab's square (half-size r around x, y) after a transform. */
+function transformRect(t: DOMMatrix, x: number, y: number, r: number): Rect {
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  for (const [cx, cy] of [
+    [x - r, y - r],
+    [x + r, y - r],
+    [x - r, y + r],
+    [x + r, y + r],
+  ]) {
+    const px = t.a * cx + t.c * cy + t.e;
+    const py = t.b * cx + t.d * cy + t.f;
+    x0 = Math.min(x0, px);
+    y0 = Math.min(y0, py);
+    x1 = Math.max(x1, px);
+    y1 = Math.max(y1, py);
+  }
+  return [x0, y0, x1 - x0, y1 - y0];
 }
 
 function union(a: Rect | null, b: Rect): Rect {

@@ -3,7 +3,8 @@
  * - one finger, pen or mouse paints (every in-between sample is used, with pressure and tilt);
  * - two fingers pinch to zoom, rotate and pan; a quick two-finger tap undoes;
  * - a three-finger tap redoes; a four-finger tap hides the interface;
- * - touch and hold (without moving) picks a colour.
+ * - touch and hold (without moving) picks a colour;
+ * - pausing at the end of a stroke (still touching) asks for QuickShape.
  * In pen-only mode, fingers never paint: one finger pans, two pinch.
  */
 export interface InputPoint {
@@ -22,6 +23,8 @@ export interface InputHandlers {
   strokeMove(points: InputPoint[]): void;
   strokeEnd(): void;
   strokeCancel(): void;
+  /** The pointer stopped still for a moment partway through a stroke. */
+  strokeHold(): void;
   pinchStart(a: [number, number], b: [number, number]): void;
   pinch(a: [number, number], b: [number, number]): void;
   pinchEnd(): void;
@@ -47,6 +50,8 @@ type State = 'idle' | 'drawing' | 'gesture' | 'pan' | 'eyedropper' | 'wait';
 
 const HOLD_MS = 450;
 const TAP_MS = 320;
+/** How long to stay still at the end of a stroke for QuickShape. */
+const SHAPE_MS = 520;
 
 export class StudioInput {
   penOnly = false;
@@ -56,6 +61,8 @@ export class StudioInput {
   private strokeStart = 0;
   private strokeTravel = 0;
   private holdTimer = 0;
+  private stillTimer = 0;
+  private still: [number, number] = [0, 0];
   private gestureStart = 0;
   private gestureFingers = 0;
   private gestureMoved = false;
@@ -80,6 +87,7 @@ export class StudioInput {
     this.el.removeEventListener('pointercancel', this.cancel);
     this.el.removeEventListener('contextmenu', this.prevent);
     window.clearTimeout(this.holdTimer);
+    window.clearTimeout(this.stillTimer);
   }
 
   private prevent = (e: Event): void => e.preventDefault();
@@ -126,6 +134,7 @@ export class StudioInput {
       this.drawer = e.pointerId;
       this.strokeStart = performance.now();
       this.strokeTravel = 0;
+      this.still = [x, y];
       this.handlers.strokeStart(this.point(e), e.pointerType === 'pen');
       // Touch and hold without moving: pick a colour instead.
       if (e.pointerType !== 'pen') {
@@ -149,6 +158,7 @@ export class StudioInput {
       if (performance.now() - this.strokeStart < 260 || this.strokeTravel < 14) {
         this.handlers.strokeCancel();
         window.clearTimeout(this.holdTimer);
+        window.clearTimeout(this.stillTimer);
         this.startGesture();
       }
       return;
@@ -183,6 +193,14 @@ export class StudioInput {
       const events = e.getCoalescedEvents?.() ?? [];
       const points = (events.length ? events : [e]).map((ev) => this.point(ev));
       this.handlers.strokeMove(points);
+      // Restart the "held still" clock whenever the pointer really moves (a pen trembles a little).
+      if (Math.hypot(x - this.still[0], y - this.still[1]) > 5) {
+        this.still = [x, y];
+        window.clearTimeout(this.stillTimer);
+        this.stillTimer = window.setTimeout(() => {
+          if (this.state === 'drawing' && this.strokeTravel > 30) this.handlers.strokeHold();
+        }, SHAPE_MS);
+      }
     } else if (this.state === 'gesture') {
       const [a, b] = [...this.pointers.values()];
       if (a && b) this.handlers.pinch([a.x, a.y], [b.x, b.y]);
@@ -208,6 +226,7 @@ export class StudioInput {
     this.pointers.delete(e.pointerId);
     if (this.state === 'drawing' && e.pointerId === this.drawer) {
       window.clearTimeout(this.holdTimer);
+      window.clearTimeout(this.stillTimer);
       if (cancelled) this.handlers.strokeCancel();
       else this.handlers.strokeEnd();
       this.state = this.pointers.size ? 'wait' : 'idle';

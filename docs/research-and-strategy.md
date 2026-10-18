@@ -105,7 +105,12 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
    - Layers with blend modes and alpha lock; undo and redo with gestures.
    - A dab brush engine (tip + grain, pressure, tilt, speed, StreamLine, taper) with 17 brushes, plus smudge and eraser.
    - Colour panel and eyedropper; PNG/JPEG export and share.
-2. **Make it yours:** the brush editor and *My brushes*, about 28 brushes, symmetry and kaleidoscope, QuickShape, fill and a reference window.
+2. **Make it yours** (built):
+   - 30 brushes, including oil paint and a palette knife that mix with the paint already there.
+   - The brush editor (about 30 settings, live sample) and *My brushes*.
+   - Symmetry: mirror, four ways, radial and kaleidoscope, with a movable centre.
+   - QuickShape (line, arc, circle, ellipse, rectangle, triangle, polygon) and predictive stroke.
+   - Fill bucket with tolerance and line-art mode; a reference window.
 3. **Alive:** live watercolour on our fluid solver (flows, freezes, dries, re-wets) and the Glow studio.
 4. **Share:** time-lapse video (full and 30 s), the first-painting guide and a performance pass.
 
@@ -116,6 +121,8 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
 - Help is built in.
 
 **Notes from building milestone 1:**
+- **Wet paint (oil, palette knife)** uses the same carried-paint idea as smudge, plus a refill with the brush colour. It only picks up real paint, not empty canvas, so it stays opaque on a bare layer.
+- **QuickShape** fits a line, then a circle or ellipse (from the point cloud's main axes) against corners found by Ramer–Douglas–Peucker. A four-cornered shape with near-right angles becomes a true rectangle. Predictive stroke is a Gaussian smoothing along the line, mirrored at the ends so they stay put.
 - **Smudge** carries a "loaded" brush. It lays its paint down and picks up what it passes over, both measured per distance moved, so smears fade naturally instead of dragging one colour forever.
 - **Export:** PNG is the default because it's lossless and keeps transparency. JPEG is offered for quick sharing.
 - **Memory:** canvas size and layer count are capped by a memory budget, since iOS caps a canvas at about 16.7 MP.

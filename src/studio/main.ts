@@ -5,7 +5,7 @@ import { newId, PaintingDoc } from './doc/document';
 import { getPainting } from './doc/library';
 import { Editor } from './editor';
 import { Gallery } from './gallery';
-import { loadPrefs } from './tools';
+import { loadCustomBrushes, loadPrefs } from './tools';
 import type { NewPaintingSpec } from './ui/newPainting';
 
 /**
@@ -14,6 +14,7 @@ import type { NewPaintingSpec } from './ui/newPainting';
  */
 const root = document.getElementById('studio') as HTMLElement;
 const prefs = loadPrefs();
+loadCustomBrushes();
 let gallery: Gallery | null = null;
 let editor: Editor | null = null;
 

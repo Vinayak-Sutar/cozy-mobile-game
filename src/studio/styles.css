@@ -788,3 +788,192 @@ input.st-input {
   min-width: 128px;
   color: var(--accent);
 }
+
+/* ---------- Milestone 2: tools, brush editor, symmetry, reference ---------- */
+
+.st-bottombar {
+  gap: 2px;
+  max-width: calc(100% - 16px);
+}
+
+.st-brush-btn {
+  max-width: 118px;
+  padding-right: 10px;
+  flex: 0 1 auto;
+  min-width: 46px;
+}
+
+@media (max-width: 380px) {
+  .st-brush-btn span {
+    display: none;
+  }
+
+  .st-brush-btn {
+    padding-right: 6px;
+  }
+}
+
+.st-btn.dot::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.st-btn {
+  position: relative;
+}
+
+.st-brush-sample {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 340 / 88;
+  border-radius: 14px;
+  background: #f4f1ea;
+  margin-bottom: 4px;
+}
+
+.st-tip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.st-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 2px;
+  border-radius: 12px;
+  background: var(--panel-2);
+  border: 2px solid transparent;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.st-tip canvas {
+  width: 36px;
+  height: 36px;
+}
+
+.st-tip.active {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.st-sym-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.st-sym {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  border: 2px solid transparent;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.st-sym.active {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.st-sym-handle {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  background: rgba(23, 24, 30, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+  z-index: 2;
+}
+
+.st-sym-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.st-chrome-hidden .st-sym-handle,
+.st-chrome-hidden .st-ref {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.st-ref {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.st-ref-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 12px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  touch-action: none;
+  cursor: move;
+}
+
+.st-ref-bar span {
+  flex: 1;
+}
+
+.st-ref-bar .st-btn {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.st-ref-bar .st-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.st-ref canvas {
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.st-ref-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 26px;
+  height: 26px;
+  touch-action: none;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0.55) 58%, transparent 58%, transparent 70%, rgba(255, 255, 255, 0.55) 70%, rgba(255, 255, 255, 0.55) 78%, transparent 78%);
+}

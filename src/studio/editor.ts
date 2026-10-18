@@ -1,17 +1,23 @@
-import { type DocPoint, BrushEngine, type ToolMode } from './brush/engine';
-import { brushById } from './brush/presets';
-import { rgbToHex } from './color';
-import { type BlendMode, memoryBudget, metaOf, type PaintingDoc, type PaperTexture } from './doc/document';
+import { type DocPoint, BrushEngine, type StrokeSetup, type ToolMode } from './brush/engine';
+import { floodFill } from './brush/fill';
+import { type Brush, brushById, customBrushes, isCustom, MY_SET } from './brush/presets';
+import { recognise, shapeName, shapePoints, smoothPath } from './brush/quickshape';
+import { symmetryGuides, symmetryTransforms } from './brush/symmetry';
+import { hexToRgb, rgbToHex } from './color';
+import { type BlendMode, context, makeCanvas, memoryBudget, metaOf, newId, type PaintingDoc, type PaperTexture } from './doc/document';
 import { ActionEdit, History, TileEdit } from './doc/history';
 import { canvasBlob, type PaintingMeta, savePainting, saveVersion } from './doc/library';
 import { encode, fileName, type ImageFormat, shareOrSave } from './export';
 import { type InputPoint, StudioInput } from './input/input';
-import { pushRecent, savePrefs, type StudioPrefs } from './tools';
-import { BrushPanel, brushPreview } from './ui/brushPanel';
+import { pushRecent, saveCustomBrushes, savePrefs, type StudioPrefs } from './tools';
+import { BrushEditor } from './ui/brushEditor';
+import { BrushPanel, brushPreview, darkBackdrop } from './ui/brushPanel';
 import { ColorPanel } from './ui/colorPanel';
 import { button, html, icons } from './ui/icons';
 import { LayersPanel } from './ui/layersPanel';
+import { ReferenceWindow } from './ui/reference';
 import { Sheet } from './ui/sheet';
+import { ToolsPanel } from './ui/toolsPanel';
 import { Compositor } from './view/compositor';
 import { Viewport } from './view/viewport';
 
@@ -59,6 +65,17 @@ export class Editor {
   private layersPanel: LayersPanel | null = null;
   private colorPanel: ColorPanel | null = null;
   private brushPanel: BrushPanel | null = null;
+  private toolsPanel: ToolsPanel | null = null;
+  private readonly reference: ReferenceWindow;
+  private referenceTimer = 0;
+
+  // The stroke in progress, kept so QuickShape and predictive stroke can redraw it.
+  private strokeSetup: StrokeSetup | null = null;
+  private rawPoints: DocPoint[] = [];
+  private snapped = false;
+  /** The fill bucket is in use instead of a brush: a tap fills. */
+  private fillActive = false;
+  private fillAt: InputPoint | null = null;
 
   // Interface bits that change.
   private readonly undoBtn: HTMLButtonElement;
@@ -67,6 +84,8 @@ export class Editor {
   private readonly brushBtn: HTMLButtonElement;
   private readonly well: HTMLButtonElement;
   private readonly modeBtns: Record<ToolMode, HTMLButtonElement>;
+  private readonly toolsBtn: HTMLButtonElement;
+  private readonly symHandle: HTMLElement;
   private readonly sizeSlider: VSlider;
   private readonly opacitySlider: VSlider;
   private readonly loupe: HTMLElement;
@@ -139,15 +158,17 @@ export class Editor {
     };
     for (const mode of ['paint', 'smudge', 'erase'] as ToolMode[]) {
       this.modeBtns[mode].addEventListener('click', () => {
-        if (this.prefs.mode === mode) this.openBrushes();
+        if (this.prefs.mode === mode && !this.fillActive) this.openBrushes();
         else this.setMode(mode);
       });
     }
+    this.toolsBtn = button(icons.tools, 'Tools: symmetry, fill, shapes, reference');
+    this.toolsBtn.addEventListener('click', () => this.openTools());
     this.well = document.createElement('button');
     this.well.className = 'st-well';
     this.well.setAttribute('aria-label', 'Colours');
     this.well.addEventListener('click', () => this.openColors());
-    bottom.append(this.brushBtn, this.modeBtns.paint, this.modeBtns.smudge, this.modeBtns.erase, this.well);
+    bottom.append(this.brushBtn, this.modeBtns.paint, this.modeBtns.smudge, this.modeBtns.erase, this.toolsBtn, this.well);
 
     this.loupe = document.createElement('div');
     this.loupe.className = 'st-loupe st-hidden';
@@ -157,7 +178,12 @@ export class Editor {
     this.sizePreview.className = 'st-size-preview st-hidden';
     this.showUi = button(icons.eye, 'Show interface', 'st-btn st-show-ui st-hidden');
     this.showUi.addEventListener('click', () => this.toggleUi());
-    this.el.append(top, side, bottom, this.loupe, this.toastEl, this.sizePreview, this.showUi);
+    this.symHandle = document.createElement('div');
+    this.symHandle.className = 'st-sym-handle st-hidden';
+    this.symHandle.setAttribute('aria-label', 'Symmetry centre');
+    this.dragCentre(this.symHandle);
+    this.el.append(this.symHandle, top, side, bottom, this.loupe, this.toastEl, this.sizePreview, this.showUi);
+    this.reference = new ReferenceWindow(this.el, (c) => this.pickColor(c), () => this.toolsPanel?.render());
     this.sheet = new Sheet(this.el);
 
     this.input = new StudioInput(this.canvas, {
@@ -165,6 +191,7 @@ export class Editor {
       strokeMove: (points) => this.strokeMove(points),
       strokeEnd: () => this.strokeEnd(),
       strokeCancel: () => this.strokeCancel(),
+      strokeHold: () => this.quickShape(),
       pinchStart: (a, b) => this.view.beginPinch(a, b),
       pinch: (a, b) => {
         this.view.pinch(a, b);
@@ -209,7 +236,76 @@ export class Editor {
     this.needsRender = false;
     this.engine.takeFrame();
     this.compositor.render(this.ctx, this.view, this.ratio, this.engine.live(), this.engine.area);
+    this.drawGuides();
   };
+
+  /** Dashed symmetry lines through the centre. */
+  private drawGuides(): void {
+    const sym = this.prefs.symmetry;
+    if (sym.mode === 'off' || this.el.classList.contains('st-chrome-hidden')) return;
+    const ctx = this.ctx;
+    const { angles, rays } = symmetryGuides({ ...sym, x: 0, y: 0 });
+    const cx = sym.cx * this.doc.width;
+    const cy = sym.cy * this.doc.height;
+    const reach = Math.hypot(this.doc.width, this.doc.height);
+    ctx.setTransform(...this.view.matrix(this.ratio));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, this.doc.width, this.doc.height);
+    ctx.clip();
+    ctx.lineWidth = 1.5 / this.view.scale;
+    ctx.setLineDash([8 / this.view.scale, 6 / this.view.scale]);
+    ctx.strokeStyle = 'rgba(122, 167, 255, 0.75)';
+    ctx.beginPath();
+    for (const a of angles) {
+      ctx.moveTo(rays ? cx : cx - Math.cos(a) * reach, rays ? cy : cy - Math.sin(a) * reach);
+      ctx.lineTo(cx + Math.cos(a) * reach, cy + Math.sin(a) * reach);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  /** Keeps the round centre handle over the symmetry centre. */
+  private placeHandle(): void {
+    const sym = this.prefs.symmetry;
+    this.symHandle.classList.toggle('st-hidden', sym.mode === 'off');
+    if (sym.mode === 'off') return;
+    const [x, y] = this.view.toScreen(sym.cx * this.doc.width, sym.cy * this.doc.height);
+    this.symHandle.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  private dragCentre(handle: HTMLElement): void {
+    let dragging = false;
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const rect = this.el.getBoundingClientRect();
+      const [x, y] = this.view.toDoc(e.clientX - rect.left, e.clientY - rect.top);
+      // Snaps to the middle when close, so it's easy to put back.
+      let cx = Math.min(1, Math.max(0, x / this.doc.width));
+      let cy = Math.min(1, Math.max(0, y / this.doc.height));
+      const near = 12 / (this.view.scale * Math.max(this.doc.width, this.doc.height));
+      if (Math.abs(cx - 0.5) < near) cx = 0.5;
+      if (Math.abs(cy - 0.5) < near) cy = 0.5;
+      this.prefs.symmetry.cx = cx;
+      this.prefs.symmetry.cy = cy;
+      this.placeHandle();
+      this.render();
+    });
+    const end = (): void => {
+      if (!dragging) return;
+      dragging = false;
+      savePrefs(this.prefs);
+    };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  }
 
   private render(): void {
     this.needsRender = true;
@@ -231,6 +327,7 @@ export class Editor {
 
   private viewChanged(): void {
     this.zoomLabel.textContent = `${this.view.zoomPercent}%`;
+    this.placeHandle();
     this.render();
   }
 
@@ -247,6 +344,11 @@ export class Editor {
 
   private strokeStart(p: InputPoint, _pen: boolean): void {
     this.sheet.close();
+    if (this.fillActive) {
+      // Fill on lift, so a two-finger gesture that starts with one finger doesn't fill.
+      this.fillAt = p;
+      return;
+    }
     const layer = this.doc.activeLayer;
     if (!layer.visible) {
       this.toast('This layer is hidden');
@@ -255,25 +357,83 @@ export class Editor {
     const mode = this.prefs.mode;
     const tool = this.prefs.tools[mode];
     const brush = brushById(tool.brush);
+    const sym = this.prefs.symmetry;
+    this.strokeSetup = {
+      brush,
+      size: tool.size * this.docScale,
+      opacity: tool.opacity * brush.opacity,
+      color: this.prefs.color,
+      mode,
+      viewScale: this.view.scale,
+      symmetry: symmetryTransforms({ mode: sym.mode, count: sym.count, x: sym.cx * this.doc.width, y: sym.cy * this.doc.height }),
+    };
+    const first = this.toDoc(p);
+    this.rawPoints = [first];
+    this.snapped = false;
     this.edit = new TileEdit(layer, mode === 'erase' ? 'Erase' : mode === 'smudge' ? 'Smudge' : 'Paint');
-    this.engine.begin(
-      layer,
-      { brush, size: tool.size * this.docScale, opacity: tool.opacity * brush.opacity, color: this.prefs.color, mode, viewScale: this.view.scale },
-      this.toDoc(p),
-      this.edit,
-    );
+    this.engine.begin(layer, this.strokeSetup, first, this.edit);
     if (this.engine.live()) this.compositor.beginStroke();
     this.render();
   }
 
   private strokeMove(points: InputPoint[]): void {
-    if (!this.engine.active) return;
-    this.engine.add(points.map((p) => this.toDoc(p)));
+    if (!this.engine.active || this.snapped) return;
+    const doc = points.map((p) => this.toDoc(p));
+    if (this.rawPoints.length < 20000) this.rawPoints.push(...doc);
+    this.engine.add(doc);
+  }
+
+  /** Throws away the stroke so far and paints it again along `points` (for QuickShape and predictive stroke). */
+  private redrawStroke(points: DocPoint[]): void {
+    const setup = this.strokeSetup;
+    if (!setup || !this.engine.active || points.length < 2) return;
+    const layer = this.doc.activeLayer;
+    const label = this.edit?.label ?? 'Paint';
+    this.engine.cancel();
+    // Smudge and wet paint already changed the layer: put it back first.
+    if (this.edit && !this.edit.empty) this.edit.undo();
+    this.edit = new TileEdit(layer, label);
+    this.engine.begin(layer, { ...setup, brush: { ...setup.brush, streamline: 0 } }, points[0], this.edit);
+    this.engine.add(points.slice(1));
+    if (this.engine.live()) this.compositor.beginStroke();
+    this.render();
+  }
+
+  /** Held still at the end of a stroke: snap it to a clean line or shape. */
+  private quickShape(): void {
+    if (!this.prefs.quickShape || !this.engine.active || this.snapped || this.prefs.mode === 'smudge') return;
+    const raw = this.rawPoints;
+    const shape = recognise(raw, 1 / this.view.scale);
+    if (!shape) return;
+    const step = Math.max(0.5, 2 / this.view.scale);
+    const pts = shapePoints(shape, step);
+    // A steady, even pressure (the average of the stroke) and an unhurried pace.
+    const pressures = raw.map((p) => p.pressure).filter((p): p is number => p !== null);
+    const pressure = pressures.length ? pressures.reduce((a, b) => a + b, 0) / pressures.length : null;
+    const t0 = raw[0].t;
+    const dt = (step * this.view.scale) / 0.3;
+    this.redrawStroke(pts.map((p, i) => ({ x: p.x, y: p.y, pressure, tiltX: raw[0].tiltX, tiltY: raw[0].tiltY, t: t0 + i * dt })));
+    this.snapped = true;
+    navigator.vibrate?.(12);
+    this.toast(`Snapped to ${shapeName(shape)}`);
   }
 
   private strokeEnd(): void {
+    if (this.fillActive) {
+      const at = this.fillAt;
+      this.fillAt = null;
+      if (at) this.fill(at);
+      return;
+    }
     if (!this.engine.active) return;
+    // Predictive stroke: tidy the wobbles of the whole line before it's put down.
+    const strength = this.prefs.predictive;
+    if (strength > 0 && !this.snapped && this.prefs.mode !== 'smudge' && this.rawPoints.length > 6) {
+      this.redrawStroke(smoothPath(this.rawPoints, (strength * 16) / this.view.scale));
+    }
     this.engine.end();
+    this.strokeSetup = null;
+    this.rawPoints = [];
     const edit = this.edit;
     this.edit = null;
     if (edit && !edit.empty) {
@@ -284,11 +444,79 @@ export class Editor {
         savePrefs(this.prefs);
       }
     }
+    this.pictureChanged();
     this.render();
   }
 
+  /** The fill bucket: fills the area under `p` on the active layer. */
+  private fill(p: InputPoint): void {
+    const layer = this.doc.activeLayer;
+    if (!layer.visible) {
+      this.toast('This layer is hidden');
+      return;
+    }
+    const [x, y] = this.view.toDoc(p.x, p.y);
+    const { width, height } = this.doc;
+    if (x < 0 || y < 0 || x >= width || y >= height) return;
+    const source = this.prefs.fillSample === 'layer' ? layer.canvas : this.compositor.flatten(1, false);
+    const image = context(source).getImageData(0, 0, width, height);
+    const result = floodFill(image, x, y, this.prefs.fillTolerance, 1);
+    if (!result) return;
+    if (result.width * result.height > width * height * 0.98 && this.prefs.fillSample === 'all') this.toast('Filled the whole canvas: is there a gap in the outline?', 2400);
+    const patch = makeCanvas(result.width, result.height);
+    const pctx = context(patch);
+    const out = pctx.createImageData(result.width, result.height);
+    const [r, g, b] = hexToRgb(this.prefs.color);
+    for (let i = 0; i < result.mask.length; i++) {
+      if (!result.mask[i]) continue;
+      out.data[i * 4] = r;
+      out.data[i * 4 + 1] = g;
+      out.data[i * 4 + 2] = b;
+      out.data[i * 4 + 3] = 255;
+    }
+    pctx.putImageData(out, 0, 0);
+    const edit = new TileEdit(layer, 'Fill');
+    edit.capture(result.x, result.y, result.width, result.height);
+    const ctx = layer.ctx;
+    ctx.globalCompositeOperation = layer.alphaLock ? 'source-atop' : 'source-over';
+    ctx.globalAlpha = this.prefs.tools.paint.opacity;
+    ctx.drawImage(patch, result.x, result.y);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    this.history.push(edit);
+    this.markLayer(layer.id);
+    pushRecent(this.prefs, this.prefs.color);
+    savePrefs(this.prefs);
+    this.pictureChanged();
+    this.render();
+  }
+
+  /** The painting changed: refresh the reference window if it shows the painting. */
+  private pictureChanged(): void {
+    if (this.reference.mode !== 'canvas') return;
+    window.clearTimeout(this.referenceTimer);
+    this.referenceTimer = window.setTimeout(() => this.showWholePainting(), 250);
+  }
+
+  private showWholePainting(): void {
+    this.reference.showCanvas(this.compositor.flatten(Math.min(1, 700 / Math.max(this.doc.width, this.doc.height))));
+  }
+
+  private pickColor(color: string): void {
+    this.prefs.previous = this.prefs.color;
+    this.prefs.color = color;
+    pushRecent(this.prefs, color);
+    savePrefs(this.prefs);
+    this.updateTool();
+    this.colorPanel?.sync();
+    this.toast('Colour picked');
+  }
+
   private strokeCancel(): void {
+    this.fillAt = null;
     if (!this.engine.active) return;
+    this.strokeSetup = null;
+    this.rawPoints = [];
     // Smudge already changed the layer: put it back.
     if (this.edit && !this.edit.empty) this.edit.undo();
     this.edit = null;
@@ -315,6 +543,7 @@ export class Editor {
     this.compositor.invalidate();
     this.markAll();
     this.layersPanel?.render();
+    this.pictureChanged();
     this.render();
   }
 
@@ -324,15 +553,7 @@ export class Editor {
     const color = inside ? rgbToHex(...this.compositor.sample(dx, dy)) : this.prefs.color;
     if (phase === 'end') {
       this.loupe.classList.add('st-hidden');
-      if (inside) {
-        this.prefs.previous = this.prefs.color;
-        this.prefs.color = color;
-        pushRecent(this.prefs, color);
-        savePrefs(this.prefs);
-        this.updateTool();
-        this.colorPanel?.sync();
-        this.toast('Colour picked');
-      }
+      if (inside) this.pickColor(color);
       return;
     }
     this.loupe.classList.remove('st-hidden');
@@ -354,6 +575,7 @@ export class Editor {
   // ---------- Tools ----------
 
   private setMode(mode: ToolMode): void {
+    this.fillActive = false;
     this.prefs.mode = mode;
     savePrefs(this.prefs);
     this.updateTool();
@@ -379,7 +601,11 @@ export class Editor {
     const mode = this.prefs.mode;
     const tool = this.prefs.tools[mode];
     const brush = brushById(tool.brush);
-    for (const m of Object.keys(this.modeBtns) as ToolMode[]) this.modeBtns[m].classList.toggle('on', m === mode);
+    for (const m of Object.keys(this.modeBtns) as ToolMode[]) this.modeBtns[m].classList.toggle('on', m === mode && !this.fillActive);
+    this.toolsBtn.classList.toggle('on', this.fillActive);
+    this.toolsBtn.innerHTML = this.fillActive ? icons.fill : icons.tools;
+    this.toolsBtn.classList.toggle('dot', this.prefs.symmetry.mode !== 'off');
+    this.placeHandle();
     this.well.style.background = this.prefs.color;
     this.sizeSlider.set(Math.log(tool.size / MIN_SIZE) / Math.log(MAX_SIZE / MIN_SIZE));
     this.opacitySlider.set(tool.opacity);
@@ -388,8 +614,9 @@ export class Editor {
     dot.width = dot.height = 68;
     const dctx = dot.getContext('2d');
     if (dctx) {
-      const preview = brushPreview(brush, mode === 'paint' ? this.prefs.color : '#55565f');
-      if (brush.blend === 'lighter') {
+      const color = mode === 'paint' ? this.prefs.color : '#55565f';
+      const preview = brushPreview(brush, color);
+      if (darkBackdrop(brush, color)) {
         dctx.fillStyle = '#1d1e26';
         dctx.fillRect(0, 0, 68, 68);
       }
@@ -420,20 +647,101 @@ export class Editor {
 
   // ---------- Panels ----------
 
+  private pickBrush(id: string): void {
+    const mode = this.prefs.mode;
+    const tool = this.prefs.tools[mode];
+    // Like a real brush pot: each brush keeps the size you last used it at.
+    this.prefs.brushSizes[`${mode}:${tool.brush}`] = { size: tool.size, opacity: tool.opacity };
+    const saved = this.prefs.brushSizes[`${mode}:${id}`];
+    tool.brush = id;
+    tool.size = saved?.size ?? brushById(id).size * (mode === 'paint' ? 1 : 1.4);
+    tool.opacity = saved?.opacity ?? 1;
+    savePrefs(this.prefs);
+    this.updateTool();
+  }
+
   private openBrushes(): void {
-    this.brushPanel = new BrushPanel(this.prefs, (id) => {
-      const mode = this.prefs.mode;
-      const tool = this.prefs.tools[mode];
-      // Like a real brush pot: each brush keeps the size you last used it at.
-      this.prefs.brushSizes[`${mode}:${tool.brush}`] = { size: tool.size, opacity: tool.opacity };
-      const saved = this.prefs.brushSizes[`${mode}:${id}`];
-      tool.brush = id;
-      tool.size = saved?.size ?? brushById(id).size * (mode === 'paint' ? 1 : 1.4);
-      tool.opacity = saved?.opacity ?? 1;
-      savePrefs(this.prefs);
-      this.updateTool();
-    });
+    const current = (): Brush => brushById(this.prefs.tools[this.prefs.mode].brush);
+    this.brushPanel = new BrushPanel(
+      this.prefs,
+      {
+        pick: (id) => this.pickBrush(id),
+        edit: (brush) => this.openBrushEditor(brush, isCustom(brush.id)),
+        create: () => this.openBrushEditor(current(), false),
+      },
+      current,
+    );
     this.sheet.open('brushes', 'Brushes', this.brushPanel.el, () => (this.brushPanel = null));
+  }
+
+  /** Edits a brush. Built-in brushes are kept as they are: saving makes your own copy. */
+  private openBrushEditor(brush: Brush, custom: boolean): void {
+    const editor = new BrushEditor(brush, custom, this.prefs.mode === 'paint' ? this.prefs.color : '#55565f', {
+      save: (b, asNew) => {
+        const list = customBrushes().slice();
+        const saved: Brush = { ...b, id: asNew ? `my-${newId()}` : b.id, set: MY_SET };
+        const at = list.findIndex((x) => x.id === saved.id);
+        if (at >= 0) list[at] = saved;
+        else list.unshift(saved);
+        if (!saveCustomBrushes(list)) this.toast('Could not keep the brush: storage is full', 2600);
+        // Its new default size applies from now on.
+        for (const mode of ['paint', 'smudge', 'erase'] as ToolMode[]) delete this.prefs.brushSizes[`${mode}:${saved.id}`];
+        this.prefs.brushSet = MY_SET;
+        this.prefs.tools[this.prefs.mode].brush = '';
+        this.pickBrush(saved.id);
+        this.toast(asNew ? 'Added to My brushes' : 'Brush saved');
+        this.openBrushes();
+      },
+      remove: (id) => {
+        saveCustomBrushes(customBrushes().filter((b) => b.id !== id));
+        for (const mode of ['paint', 'smudge', 'erase'] as ToolMode[]) {
+          if (this.prefs.tools[mode].brush === id) this.prefs.tools[mode].brush = 'round';
+          delete this.prefs.brushSizes[`${mode}:${id}`];
+        }
+        savePrefs(this.prefs);
+        this.updateTool();
+        this.toast('Brush deleted');
+        this.openBrushes();
+      },
+    });
+    this.sheet.open('brush-edit', custom ? 'Edit brush' : 'Make your own brush', editor.el);
+  }
+
+  private openTools(): void {
+    this.toolsPanel = new ToolsPanel(this.prefs, {
+      symmetryChanged: () => {
+        this.updateTool();
+        this.render();
+      },
+      resetCentre: () => {
+        this.prefs.symmetry.cx = 0.5;
+        this.prefs.symmetry.cy = 0.5;
+        savePrefs(this.prefs);
+        this.placeHandle();
+        this.render();
+      },
+      fill: (on) => {
+        this.fillActive = on;
+        this.updateTool();
+        if (on) {
+          this.sheet.close();
+          this.toast('Tap an area to fill it');
+        }
+      },
+      fillActive: () => this.fillActive,
+      assistChanged: () => {},
+      openImage: (file) => {
+        this.sheet.close();
+        this.reference.showFile(file).catch(() => this.toast('That picture could not be opened'));
+      },
+      showCanvas: () => {
+        this.sheet.close();
+        this.showWholePainting();
+      },
+      closeReference: () => this.reference.close(),
+      referenceOpen: () => this.reference.open,
+    });
+    this.sheet.open('tools', 'Tools', this.toolsPanel.el, () => (this.toolsPanel = null));
   }
 
   private openColors(): void {
@@ -758,6 +1066,8 @@ export class Editor {
       ['Three-finger tap', 'Redo'],
       ['Four-finger tap', 'Hide or show the interface'],
       ['Touch and hold', 'Pick a colour from the painting'],
+      ['Draw, then hold still', 'QuickShape: snaps to a line, circle or shape'],
+      ['Tools button', 'Symmetry, fill bucket, smoothing and a reference picture'],
       ['Tap the % button', 'Fit the painting to the screen'],
       ['Tap a tool twice', 'Choose its brush (smudge and eraser too)'],
       ['Pen-only mode', 'With a stylus, fingers only move the canvas'],
