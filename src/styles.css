@@ -1540,6 +1540,20 @@ svg {
   height: 92%;
 }
 
+.toy-card.link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.toy-bubble.studio {
+  background: radial-gradient(circle at 50% 40%, #3a3c4a, #17181e 85%);
+}
+
+.toy-bubble.studio .art svg {
+  width: 86%;
+  height: 86%;
+}
+
 .chick-unknown {
   width: 64px;
   height: 64px;

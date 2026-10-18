@@ -96,6 +96,30 @@ Feedback: Koi and Lantern Lights didn't land, and Pond's idea wasn't clear (all 
 
 Next: test Penguin Island on a phone, then the incremental garden.
 
+## Drift Studio: a painting app at its own address
+A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a real artist needs. It's built in four milestones:
+
+1. **Foundation** (built):
+   - Gallery with autosave, crash recovery and 5 versions.
+   - New-painting sizes and paper; zoom, pan and rotate.
+   - Layers with blend modes and alpha lock; undo and redo with gestures.
+   - A dab brush engine (tip + grain, pressure, tilt, speed, StreamLine, taper) with 17 brushes, plus smudge and eraser.
+   - Colour panel and eyedropper; PNG/JPEG export and share.
+2. **Make it yours:** the brush editor and *My brushes*, about 28 brushes, symmetry and kaleidoscope, QuickShape, fill and a reference window.
+3. **Alive:** live watercolour on our fluid solver (flows, freezes, dries, re-wets) and the Glow studio.
+4. **Share:** time-lapse video (full and 30 s), the first-painting guide and a performance pass.
+
+**What sets it apart, from reviews of Procreate, Fresco, Infinite Painter, ibisPaint, Sketchbook and Kleki:**
+- Paint that really flows.
+- Work is never lost.
+- Nothing is behind a paywall, exports are full resolution with no watermark.
+- Help is built in.
+
+**Notes from building milestone 1:**
+- **Smudge** carries a "loaded" brush. It lays its paint down and picks up what it passes over, both measured per distance moved, so smears fade naturally instead of dragging one colour forever.
+- **Export:** PNG is the default because it's lossless and keeps transparency. JPEG is offered for quick sharing.
+- **Memory:** canvas size and layer count are capped by a memory budget, since iOS caps a canvas at about 16.7 MP.
+
 ## What the market shows
 
 **Fluid Simulation** (Pavel Dobryakov) is the closest match to this idea.

@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 /** Identifies this build so the app can tell when a newer one has been deployed. */
@@ -41,5 +42,12 @@ export default defineConfig({
   plugins: [versionFile()],
   build: {
     target: 'es2020',
+    rollupOptions: {
+      // Two pages: Drift (the toy box) and Drift Studio (the painting app) at ./studio/.
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        studio: fileURLToPath(new URL('./studio/index.html', import.meta.url)),
+      },
+    },
   },
 });

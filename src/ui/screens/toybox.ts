@@ -125,6 +125,17 @@ const PENGUIN_ART = `
   <circle cx="78" cy="76" r=".9" fill="#26262f"/><circle cx="81" cy="76" r=".9" fill="#26262f"/>
 </svg>`;
 
+const STUDIO_ART = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <path d="M14 70 C30 40 52 78 70 46 S88 30 90 36" fill="none" stroke="#7aa7ff" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+  <path d="M10 82 C34 62 54 90 84 64" fill="none" stroke="#ff9f6e" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <g transform="rotate(38 56 44)">
+    <rect x="51" y="8" width="10" height="44" rx="5" fill="#f3e3c3"/>
+    <rect x="50" y="48" width="12" height="10" rx="2" fill="#c9ccd6"/>
+    <path d="M50 58 h12 q0 14 -6 22 q-6 -8 -6 -22z" fill="#e5462c"/>
+  </g>
+</svg>`;
+
 /** Every new idea becomes its own section card here. */
 const SECTIONS: Section[] = [
   { id: 'glow', name: 'Glow' },
@@ -186,6 +197,17 @@ export class ToyboxScreen {
       });
       this.grid.appendChild(card);
     }
+
+    // Drift Studio lives at its own address: this card just goes there.
+    const studio = document.createElement('a');
+    studio.className = 'toy-card clay link';
+    studio.href = './studio/';
+    studio.setAttribute('aria-label', 'Studio: a painting app');
+    studio.innerHTML = `
+      <span class="toy-bubble studio"><span class="art">${STUDIO_ART}</span></span>
+      <span class="toy-name">Studio</span>`;
+    studio.addEventListener('click', () => audio.ui('select'));
+    this.grid.appendChild(studio);
 
     el.querySelector('[data-action="back"]')?.addEventListener('click', () => {
       audio.ui('tap');

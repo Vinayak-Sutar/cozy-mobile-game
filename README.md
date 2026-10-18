@@ -15,6 +15,8 @@ The app opens on a **Home** screen whose background is live fluid, so you can sw
 | **Paper Boats** | An animal sits in a paper boat, and a bubble shows a picture of where it wants to go; that pier glows. Swipe the water to make a current and the boat floats along with it (tap for a ripple; tap the boat and the passenger waves). Each map is a few screens big and the camera follows the boat; an arrow at the edge points to a pier that's off-screen. At the right pier the passenger hops off happy and joins your **Boat log**. The 8 passengers have names and personalities: Hoppy the punny frog, Puddle the over-excited duckling, shy Clover, Miso the kitten who hates getting wet, polite Crumb, sleepy Bramble, Sir Waddles and show-off Rusty. They chat in speech bubbles with a little babble voice: where they want to go, a hello when you tap them, "wrong pier!", bumps, going fast, each map's twist, and a thank-you (or a word about the place) when they arrive. **Five places**, each with its own twist; carry 3 passengers on one to open the next (map button, bottom-left): **Sunny Pond** (calm, with an island), **Winding River** (the current keeps flowing, so don't drift past the pier), **Windy Bay** (gusts push the sail; watch the streaks), **Frozen Lake** (ice floes drift and bump; push them aside) and **Moonlit Lagoon** (glowing whirlpools spin you round). |
 | **Penguin Island** | A snowy island to explore with Pebble the penguin. **Drag** to waddle (like a joystick that starts where your finger lands); **flick** to belly-glide: fast and slippery on ice, slow in deep powder, quicker down the slope. Find the 6 lost chicks (one is on an islet in the middle of the big ice field); they follow you in a line, and when you bring them home to the igloo they go in your **Chick book**. Fish hop out of fishing holes; three islanders have favours to ask (Grandpa Waddle wants fish, Skipper has a letter for Auntie Flo, who lost her mitten on the frozen pond) and give hats as thanks; fish buy more hats and scarves in the **Wardrobe** (bottom-left). Shiny pebbles hide in nooks. Once everyone's home, a few chicks sneak out to play again. |
 
+The last card, **Studio**, opens **Drift Studio**, a separate painting app (below).
+
 **Parked for a rethink:** Pond, Lantern Lights and Feed the Koi. Their cards are hidden, but they still open if you add `?lab=1` to the address (which also opens every Paper Boats map, for testing).
 
 - **In a toy:** hold the pause button (top-left) to open the pause menu: Keep playing, Clean paper, Settings, Toy box, Home. Holding instead of tapping keeps little hands from leaving by accident.
@@ -22,6 +24,22 @@ The app opens on a **Home** screen whose background is live fluid, so you can sw
   - Separate Music and Sounds volumes, and Vibration.
   - **Four themes**: Moonlit lullaby, Cotton candy clay, Storybook meadow, Dusk origami.
   - Graphics: Battery saver, Auto or Best. Battery saver swaps the live menu background for a still illustration.
+
+## Drift Studio
+
+A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestone 1 (foundation)** is in:
+
+- **Gallery:** your paintings, saved automatically in the browser (IndexedDB) after every pause and whenever the app is hidden. Reopening after a reload or crash goes straight back to the painting. **Earlier versions** keeps the last 5 snapshots (one each time you come back and paint, and every 10 minutes). Rename, duplicate and delete from a card's ⋯ menu.
+- **New painting:** Screen, Square 2048, Portrait 2:3, Landscape 3:2, Phone wallpaper, A4 print (300 dpi) or a custom size, up to 4096 px a side. Paper colour, texture (smooth, watercolour, canvas) or transparent.
+- **Canvas:** pinch to zoom and rotate (snaps to straight), drag with two fingers to move; the % button fits it back.
+- **Brushes:** 17 brushes in 6 sets (pencils, charcoal, inks, brush pen, calligraphy, round, flat, gouache, airbrush, spray, markers, highlighter, neon glow, stars, rainbow, leaves). Each is a tip shape plus a grain texture, with pressure and tilt from a stylus, speed and taper for fingers, and StreamLine smoothing. Each brush remembers its own size. **Smudge** and **Eraser** can use any brush's shape.
+- **Colour:** a disc, HSV/RGB sliders with hex, harmony suggestions, 8 built-in palettes plus your own, and the last 10 colours. Touch and hold the canvas to pick a colour.
+- **Layers:** up to 16 (fewer on huge canvases or low-memory phones), with opacity, 16 blend modes, alpha lock, reorder, duplicate, merge down, clear and hide.
+- **Undo and redo:** buttons, or tap with two fingers (undo) or three (redo). Four fingers hides the interface.
+- **Pen-only mode** turns on by itself when a stylus touches the screen: fingers then only move the canvas, and touch-and-hold still picks colours.
+- **Export:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
+
+Still to come: the brush editor and *My brushes*, more brushes, symmetry and kaleidoscope, QuickShape, fill, a reference window (milestone 2); live watercolour and the Glow studio (milestone 3); time-lapse video and a guide (milestone 4).
 
 Research, design rules, task ideas and the roadmap are in [docs/research-and-strategy.md](docs/research-and-strategy.md).
 
@@ -77,6 +95,7 @@ src/
   toys/                 Glow, Paint, Paint with Brush, Pond, the shared paper renderer, brush definitions
   ui/                   screens, settings and pause sheets, brush toolbar, themes, icons
   styles/themes.css     the four themes as design tokens
+  studio/               Drift Studio (studio/index.html): gallery, editor, brush engine, layers, colour, export
 ```
 
 To add a new section:

@@ -1,0 +1,14 @@
+{
+  "name": "Drift Studio",
+  "short_name": "Studio",
+  "description": "Paint, draw and make light pictures on your touch screen.",
+  "start_url": "./studio/",
+  "scope": "./studio/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#17181e",
+  "theme_color": "#17181e",
+  "icons": [
+    { "src": "studio-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
