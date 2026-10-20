@@ -1069,3 +1069,127 @@ input.st-input {
 .st-glow .st-sym span {
   color: inherit;
 }
+
+/* ---------- Milestone 4: time-lapse, guide and tips ---------- */
+
+.st-progress {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  overflow: hidden;
+  margin: 10px 0 14px;
+}
+
+.st-progress div {
+  height: 100%;
+  width: 0;
+  border-radius: 5px;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+
+.st-video {
+  display: block;
+  width: 100%;
+  max-height: 46vh;
+  border-radius: 14px;
+  background: #000;
+  object-fit: contain;
+}
+
+.st-guide {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+}
+
+/* The ring is a hole in a dim screen: the huge shadow darkens everything else. */
+.st-guide-ring {
+  position: absolute;
+  border-radius: 26px;
+  box-shadow: 0 0 0 9999px rgba(8, 9, 14, 0.62);
+  outline: 3px solid var(--accent);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.st-guide-ring.none {
+  left: 50% !important;
+  top: 50% !important;
+  width: 0 !important;
+  height: 0 !important;
+  outline: none;
+}
+
+.st-guide-card {
+  position: absolute;
+  padding: 16px 16px 12px;
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  transition: top 0.25s ease, left 0.25s ease;
+}
+
+.st-guide-card.middle {
+  left: 50% !important;
+  top: 50% !important;
+  width: min(330px, calc(100% - 24px)) !important;
+  transform: translate(-50%, -50%);
+}
+
+.st-guide-card h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.st-guide-card p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.st-guide-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.st-guide-dots {
+  flex: 1;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.st-tipcard {
+  position: absolute;
+  left: 50%;
+  bottom: calc(80px + var(--safe-bottom));
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 24px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 16px;
+  border-radius: 18px;
+  background: rgba(35, 36, 44, 0.96);
+  border: 1px solid rgba(122, 167, 255, 0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  z-index: 8;
+  animation: st-tip-in 0.3s ease;
+}
+
+.st-tipcard p {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+@keyframes st-tip-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}

@@ -2,7 +2,8 @@ import type { LayerMeta, Paper } from './document';
 
 /**
  * The gallery, kept in IndexedDB so paintings survive reloads and crashes:
- * each painting's details, each layer as a PNG, and a few older versions.
+ * each painting's details, each layer as a PNG, a few older versions, and
+ * the small time-lapse frames recorded while painting.
  */
 export interface PaintingMeta {
   id: string;
@@ -32,15 +33,28 @@ let opening: Promise<IDBDatabase> | null = null;
 
 function open(): Promise<IDBDatabase> {
   opening ??= new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB, 1);
-    request.onupgradeneeded = () => {
+    const request = indexedDB.open(DB, 2);
+    // Another tab still has the old version open: it is asked to close (see onversionchange below).
+    request.onupgradeneeded = (e) => {
       const db = request.result;
-      db.createObjectStore('paintings', { keyPath: 'id' });
-      db.createObjectStore('pixels');
-      const versions = db.createObjectStore('versions', { keyPath: 'key' });
-      versions.createIndex('painting', 'painting');
+      // Version 1: paintings, layer pixels, versions. Version 2: time-lapse frames.
+      if (e.oldVersion < 1) {
+        db.createObjectStore('paintings', { keyPath: 'id' });
+        db.createObjectStore('pixels');
+        const versions = db.createObjectStore('versions', { keyPath: 'key' });
+        versions.createIndex('painting', 'painting');
+      }
+      if (e.oldVersion < 2) db.createObjectStore('frames');
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Let a newer version of the studio (in another tab) upgrade the database.
+      db.onversionchange = () => {
+        db.close();
+        opening = null;
+      };
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
   });
   return opening;
@@ -104,11 +118,49 @@ export async function renamePainting(id: string, name: string): Promise<void> {
 export async function deletePainting(id: string): Promise<void> {
   const db = await open();
   const versions = await listVersions(id);
-  const tx = db.transaction(['paintings', 'pixels', 'versions'], 'readwrite');
+  const tx = db.transaction(['paintings', 'pixels', 'versions', 'frames'], 'readwrite');
   const meta = (await result(tx.objectStore('paintings').get(id))) as PaintingMeta | undefined;
   tx.objectStore('paintings').delete(id);
   for (const layer of meta?.layers ?? []) tx.objectStore('pixels').delete(`${id}/${layer.id}`);
   for (const v of versions) tx.objectStore('versions').delete(v.key);
+  tx.objectStore('frames').delete(frameRange(id));
+  await done(tx);
+}
+
+// ---------- Time-lapse frames ----------
+
+/** Frame keys sort in painting order: "<painting>/000042". */
+const frameKey = (id: string, seq: number): string => `${id}/${String(seq).padStart(7, '0')}`;
+const frameRange = (id: string): IDBKeyRange => IDBKeyRange.bound(`${id}/`, `${id}/\uffff`);
+
+export async function addFrame(id: string, seq: number, frame: Blob): Promise<void> {
+  const db = await open();
+  const tx = db.transaction('frames', 'readwrite');
+  tx.objectStore('frames').put(frame, frameKey(id, seq));
+  await done(tx);
+}
+
+/** How many frames a painting has, and the number of the last one (-1 if none). */
+export async function frameInfo(id: string): Promise<{ count: number; last: number }> {
+  const db = await open();
+  const store = db.transaction('frames').objectStore('frames');
+  const count = await result(store.count(frameRange(id)));
+  if (!count) return { count: 0, last: -1 };
+  const keys = (await result(store.getAllKeys(frameRange(id)))) as string[];
+  const last = keys.length ? Number(keys[keys.length - 1].slice(id.length + 1)) : -1;
+  return { count, last };
+}
+
+/** Every frame, oldest first. */
+export async function getFrames(id: string): Promise<Blob[]> {
+  const db = await open();
+  return (await result(db.transaction('frames').objectStore('frames').getAll(frameRange(id)))) as Blob[];
+}
+
+export async function deleteFrames(id: string): Promise<void> {
+  const db = await open();
+  const tx = db.transaction('frames', 'readwrite');
+  tx.objectStore('frames').delete(frameRange(id));
   await done(tx);
 }
 

@@ -37,7 +37,11 @@ interface Finger {
   dir: number;
 }
 
-const MAX_UNDO = 12;
+/** Each undo step is a full-screen snapshot on the GPU (about 18 MB on a big phone screen). */
+const MAX_UNDO = (() => {
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+  return memory <= 2 ? 3 : memory <= 4 ? 5 : 8;
+})();
 
 export interface GlowOptions {
   onExit(): void;
@@ -61,6 +65,8 @@ export class GlowStudio {
   private readonly fingers = new Map<number, Finger>();
   private undoStack: FBO[] = [];
   private frozen = false;
+  /** Something changed while frozen: draw one more frame. */
+  private dirty = true;
   private strokes = 0;
   private hueBase = Math.random();
   private time = 0;
@@ -391,7 +397,11 @@ export class GlowStudio {
       this.gather(dt);
       this.sim.step(dt);
       if (!this.prefs.glow.fade) this.clearHaze(dt);
+    } else if (!this.dirty && !this.fingers.size) {
+      // Frozen and untouched: the picture hasn't changed, so save the battery.
+      return;
     }
+    this.dirty = false;
     this.draw(null);
   };
 
@@ -466,6 +476,7 @@ export class GlowStudio {
   }
 
   private updateUi(): void {
+    this.dirty = true;
     this.undoBtn.disabled = !this.undoStack.length;
     this.freezeBtn.classList.toggle('on', this.frozen);
     const g = this.prefs.glow;
@@ -617,6 +628,7 @@ export class GlowStudio {
           b.addEventListener('click', () => {
             g.background = id;
             savePrefs(this.prefs);
+            this.updateUi();
             render();
           });
           grid.appendChild(b);

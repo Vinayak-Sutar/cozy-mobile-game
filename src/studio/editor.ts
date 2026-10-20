@@ -11,6 +11,7 @@ import { encode, fileName, type ImageFormat, shareOrSave } from './export';
 import { type InputPoint, StudioInput } from './input/input';
 import { pushRecent, saveCustomBrushes, savePrefs, type StudioPrefs } from './tools';
 import { BrushEditor } from './ui/brushEditor';
+import { Guide } from './ui/guide';
 import { BrushPanel, brushPreview, darkBackdrop } from './ui/brushPanel';
 import { ColorPanel } from './ui/colorPanel';
 import { button, html, icons } from './ui/icons';
@@ -18,6 +19,8 @@ import { LayersPanel } from './ui/layersPanel';
 import { ReferenceWindow } from './ui/reference';
 import { Sheet } from './ui/sheet';
 import { VSlider } from './ui/vslider';
+import { FRAME_SIZE, TimelapseRecorder } from './timelapse/recorder';
+import { TimelapsePanel } from './ui/timelapsePanel';
 import { ToolsPanel } from './ui/toolsPanel';
 import { WetLayer, type WetStroke } from './wet/wetLayer';
 import { Compositor } from './view/compositor';
@@ -72,6 +75,12 @@ export class Editor {
   private toolsPanel: ToolsPanel | null = null;
   private readonly reference: ReferenceWindow;
   private referenceTimer = 0;
+  private readonly recorder: TimelapseRecorder;
+  private timelapsePanel: TimelapsePanel | null = null;
+  private tipCard: HTMLElement | null = null;
+  private tipTimer = 0;
+  private strokesDone = 0;
+  private snapsDone = 0;
 
   // The stroke in progress, kept so QuickShape and predictive stroke can redraw it.
   private strokeSetup: StrokeSetup | null = null;
@@ -90,6 +99,9 @@ export class Editor {
   private rewetAt = 0;
   private lastFrame = performance.now();
   private readonly wetBar: HTMLElement;
+  /** Frozen watercolour doesn't move, so it's only redrawn when something changes. */
+  private wetDirty = true;
+  private wetStatus = '';
 
   // Interface bits that change.
   private readonly undoBtn: HTMLButtonElement;
@@ -198,6 +210,12 @@ export class Editor {
     this.dragCentre(this.symHandle);
     this.el.append(this.symHandle, top, side, bottom, this.loupe, this.toastEl, this.sizePreview, this.showUi);
     this.reference = new ReferenceWindow(this.el, (c) => this.pickColor(c), () => this.toolsPanel?.render());
+    this.recorder = new TimelapseRecorder(
+      doc.id,
+      () => this.framePicture(),
+      () => !this.engine.active && !this.wetStroke,
+    );
+    this.recorder.enabled = prefs.timelapse;
     this.wetBar = document.createElement('div');
     this.wetBar.className = 'st-wetbar st-hidden';
     this.el.appendChild(this.wetBar);
@@ -236,13 +254,65 @@ export class Editor {
     this.updateTool();
     this.updateButtons();
     if (options.loaded) this.openedAs = { meta: this.meta(), layers: options.loaded };
-    else this.markAll();
+    else {
+      this.markAll();
+      // The time-lapse starts with the blank paper.
+      this.recorder.changed();
+    }
     if (!prefs.seenHelp) {
       prefs.seenHelp = true;
       savePrefs(prefs);
-      window.setTimeout(() => this.openHelp(), 500);
+      window.setTimeout(() => this.startGuide(), 400);
     }
     this.loop();
+  }
+
+  // ---------- Guide and tips ----------
+
+  /** The first-painting guide: one control at a time. */
+  private startGuide(): void {
+    this.sheet.close();
+    const at = (selector: string) => () => this.el.querySelector(selector);
+    new Guide(
+      this.el,
+      [
+        { title: 'Welcome to Drift Studio', text: 'Paint with a finger or a stylus. Everything saves by itself as you go, and the gallery keeps earlier versions too.' },
+        { title: 'Move the painting', text: 'Pinch with two fingers to zoom and turn it, and drag to move. Tap with two fingers to undo, three to redo.' },
+        { target: at('.st-brush-btn'), title: 'Brushes', text: '35 brushes, from pencils and inks to oil paint and live watercolour. Edit any brush, or make your own.' },
+        { target: at('.st-side'), title: 'Size and opacity', text: 'Slide to change how big and how strong the brush is. Each brush remembers its own size.' },
+        { target: at('.st-well'), title: 'Colours', text: 'A colour wheel, sliders, harmonies and palettes. Touch and hold the painting to pick up a colour from it.' },
+        { target: () => this.toolsBtn, title: 'Tools', text: 'Symmetry and kaleidoscope, the fill bucket, QuickShape and smoothing, and a reference picture.' },
+        { target: at('[aria-label="Layers"]'), title: 'Layers', text: 'Paint on separate layers, then change their opacity and blend, hide them or merge them.' },
+        { target: at('[aria-label="Export and share"]'), title: 'Share', text: 'Save a PNG or JPEG, or make a time-lapse video of your painting growing.' },
+      ],
+      () => this.render(),
+    );
+  }
+
+  /** A one-time tip, shown above the tools (never again once seen). */
+  private tip(id: string, text: string): void {
+    if (this.prefs.seenTips.includes(id)) return;
+    this.prefs.seenTips.push(id);
+    savePrefs(this.prefs);
+    this.tipCard?.remove();
+    const card = document.createElement('div');
+    card.className = 'st-tipcard';
+    const p = document.createElement('p');
+    p.textContent = text;
+    const ok = document.createElement('button');
+    ok.className = 'st-chip-btn';
+    ok.textContent = 'Got it';
+    const close = (): void => {
+      window.clearTimeout(this.tipTimer);
+      card.remove();
+      if (this.tipCard === card) this.tipCard = null;
+    };
+    ok.addEventListener('click', close);
+    card.append(p, ok);
+    this.el.appendChild(card);
+    this.tipCard = card;
+    window.clearTimeout(this.tipTimer);
+    this.tipTimer = window.setTimeout(close, 10000);
   }
 
   // ---------- Frame ----------
@@ -258,8 +328,11 @@ export class Editor {
       // Dries by itself once you've left it alone for a while.
       if (!this.wetStroke && wet.quiet > DRY_AFTER) this.dryWet();
       else {
-        wet.render();
-        this.needsRender = true;
+        if (!wet.frozen || this.wetStroke || this.wetDirty) {
+          wet.render();
+          this.needsRender = true;
+          this.wetDirty = false;
+        }
         this.updateWetBar();
       }
     }
@@ -329,6 +402,7 @@ export class Editor {
     edit.capture(0, 0, this.doc.width, this.doc.height);
     this.rewetEdit = edit;
     wet.rewet(layer.canvas);
+    this.wetDirty = true;
     this.rewetAt = wet.undoDepth;
     layer.ctx.clearRect(0, 0, this.doc.width, this.doc.height);
     this.compositor.invalidate();
@@ -363,6 +437,7 @@ export class Editor {
         status,
         chip(wet.frozen ? 'Frozen' : 'Freeze', wet.frozen, () => {
           wet.frozen = !wet.frozen;
+          this.wetDirty = true;
           this.toast(wet.frozen ? 'Frozen: the paint stays wet but stops moving' : 'Flowing again');
         }),
         chip('Drips', wet.dripping, () => {
@@ -374,9 +449,12 @@ export class Editor {
       );
     }
     const status = this.wetBar.querySelector('.st-wet-status') as HTMLElement | null;
-    if (status) {
-      const left = Math.max(0, Math.ceil(DRY_AFTER - wet.quiet));
-      status.textContent = this.wetStroke ? 'Wet' : `Wet · dries in ${left}s`;
+    const left = Math.max(0, Math.ceil(DRY_AFTER - wet.quiet));
+    const text = this.wetStroke ? 'Wet' : `Wet · dries in ${left}s`;
+    // Only touch the page when the words change (this runs every frame).
+    if (status && (text !== this.wetStatus || wasHidden || rebuild)) {
+      status.textContent = text;
+      this.wetStatus = text;
     }
   }
 
@@ -504,6 +582,7 @@ export class Editor {
       const wet = this.wetFor(layer.id);
       if (!wet) return;
       this.wetStroke = { kind: brush.live, color: this.prefs.color, size: tool.size * this.docScale, strength: tool.opacity, symmetry };
+      this.tip('wet', 'Live watercolour stays wet for a few seconds: brush clean water through it, let it drip, or tap Dry now. It dries by itself when you stop.');
       const [x, y] = this.view.toDoc(p.x, p.y);
       wet.begin({ x, y, pressure: p.pressure ?? 1, t: p.t }, this.wetStroke);
       this.updateWetBar();
@@ -579,6 +658,7 @@ export class Editor {
     const dt = (step * this.view.scale) / 0.3;
     this.redrawStroke(pts.map((p, i) => ({ x: p.x, y: p.y, pressure, tiltX: raw[0].tiltX, tiltY: raw[0].tiltY, t: t0 + i * dt })));
     this.snapped = true;
+    this.snapsDone++;
     navigator.vibrate?.(12);
     this.toast(`Snapped to ${shapeName(shape)}`);
   }
@@ -613,6 +693,10 @@ export class Editor {
     if (edit && !edit.empty) {
       this.history.push(edit);
       this.markLayer(edit.layer.id);
+      this.strokesDone++;
+      if (this.strokesDone === 12 && !this.snapsDone && this.prefs.quickShape) {
+        this.tip('quickshape', 'Tip: draw a line, circle or box and hold still at the end. It snaps to a clean shape (QuickShape).');
+      }
       if (this.prefs.mode === 'paint') {
         pushRecent(this.prefs, this.prefs.color);
         savePrefs(this.prefs);
@@ -666,11 +750,18 @@ export class Editor {
     this.render();
   }
 
-  /** The painting changed: refresh the reference window if it shows the painting. */
+  /** The painting changed: record a time-lapse frame, and refresh the reference window if it shows the painting. */
   private pictureChanged(): void {
+    this.recorder.changed();
     if (this.reference.mode !== 'canvas') return;
     window.clearTimeout(this.referenceTimer);
     this.referenceTimer = window.setTimeout(() => this.showWholePainting(), 250);
+  }
+
+  /** The painting as it looks now, small, for a time-lapse frame. */
+  private framePicture(): HTMLCanvasElement {
+    const { width, height, paper } = this.doc;
+    return this.compositor.flatten(Math.min(1, FRAME_SIZE / Math.max(width, height)), paper.visible, paper.visible ? null : '#ffffff');
   }
 
   private showWholePainting(): void {
@@ -719,6 +810,7 @@ export class Editor {
         this.compositor.invalidate();
       }
       if (!wet.canUndo) wet.clearAll();
+      this.wetDirty = true;
       this.toast('Undo watercolour');
       this.updateButtons();
       this.updateWetBar();
@@ -778,6 +870,7 @@ export class Editor {
   private setMode(mode: ToolMode): void {
     this.fillActive = false;
     this.prefs.mode = mode;
+    if (mode === 'smudge') this.tip('smudge', 'Smudge drags paint like a wet finger. Tap Smudge again to choose its brush: any shape or texture works.');
     savePrefs(this.prefs);
     this.updateTool();
     if (this.sheet.openId === 'brushes') this.brushPanel?.render();
@@ -913,6 +1006,7 @@ export class Editor {
       symmetryChanged: () => {
         this.updateTool();
         this.render();
+        if (this.prefs.symmetry.mode !== 'off') this.tip('symmetry', 'Drag the round handle on the canvas to move the centre of the symmetry.');
       },
       resetCentre: () => {
         this.prefs.symmetry.cx = 0.5;
@@ -927,6 +1021,7 @@ export class Editor {
         if (on) {
           this.sheet.close();
           this.toast('Tap an area to fill it');
+          this.tip('fill', 'Fill looks at all layers, so you can colour in line art from a layer underneath. Tap a paint tool to stop filling.');
         }
       },
       fillActive: () => this.fillActive,
@@ -952,6 +1047,7 @@ export class Editor {
 
   private openLayers(): void {
     this.dryWet();
+    this.tip('layers', 'Tap a layer to paint on it. Each layer can be hidden, faded or blended without touching the others.');
     const doc = this.doc;
     const push = (label: string, undo: () => void, redo: () => void): void => {
       this.history.push(new ActionEdit(label, undo, redo));
@@ -960,6 +1056,7 @@ export class Editor {
       this.compositor.invalidate();
       this.markAll();
       this.layersPanel?.render();
+      this.pictureChanged();
       this.render();
     };
     let opacityBefore: number | null = null;
@@ -1127,6 +1224,7 @@ export class Editor {
       this.compositor.paperChanged();
       this.dirtyMeta = true;
       this.scheduleSave();
+      this.pictureChanged();
       this.render();
       if (rerender) render();
     };
@@ -1134,8 +1232,38 @@ export class Editor {
     this.sheet.open('paper', 'Paper', wrap, () => this.layersPanel?.render());
   }
 
-  private openExport(): void {
+  /** Share: a picture (PNG or JPEG), or a time-lapse video. */
+  private openExport(tab: 'picture' | 'timelapse' = 'picture'): void {
     this.dryWet();
+    this.timelapsePanel?.dispose();
+    this.timelapsePanel = null;
+    const body = tab === 'picture' ? this.picturePanel() : (this.timelapsePanel = new TimelapsePanel({ paintingId: this.doc.id, name: this.doc.name, recorder: this.recorder, toast: (t, ms) => this.toast(t, ms) })).el;
+    const tabs = document.createElement('div');
+    tabs.className = 'st-tabs';
+    for (const [id, label] of [
+      ['picture', 'Picture'],
+      ['timelapse', 'Time-lapse'],
+    ] as ['picture' | 'timelapse', string][]) {
+      const b = document.createElement('button');
+      b.className = `st-tab${tab === id ? ' active' : ''}`;
+      b.textContent = label;
+      b.addEventListener('click', () => {
+        if (id !== tab) {
+          this.sheet.close();
+          this.openExport(id);
+        }
+      });
+      tabs.appendChild(b);
+    }
+    const wrap = document.createElement('div');
+    wrap.append(tabs, body);
+    this.sheet.open(`export-${tab}`, 'Share', wrap, () => {
+      this.timelapsePanel?.dispose();
+      this.timelapsePanel = null;
+    });
+  }
+
+  private picturePanel(): HTMLElement {
     const doc = this.doc;
     let format: ImageFormat = 'png';
     let scale = 1;
@@ -1212,7 +1340,7 @@ export class Editor {
     });
     actions.appendChild(share);
     wrap.append(preview, formatRow, sizeRow, qualityRow, note, actions);
-    this.sheet.open('export', 'Export', wrap);
+    return wrap;
   }
 
   private openMore(): void {
@@ -1235,6 +1363,13 @@ export class Editor {
         this.openMore();
         this.openMore();
       }),
+      item(`Record time-lapse: ${this.prefs.timelapse ? 'on' : 'off'}`, () => {
+        this.prefs.timelapse = !this.prefs.timelapse;
+        this.recorder.enabled = this.prefs.timelapse;
+        savePrefs(this.prefs);
+        this.openMore();
+        this.openMore();
+      }),
       item('Fit to screen', () => {
         this.fit();
         this.sheet.close();
@@ -1252,6 +1387,7 @@ export class Editor {
           this.scheduleSave();
         }
       }),
+      item('Show the guide again', () => this.startGuide()),
       item('Gestures and tips', () => this.openHelp()),
     );
     const info = document.createElement('p');
@@ -1303,6 +1439,7 @@ export class Editor {
     if (e.type === 'pagehide' || document.visibilityState === 'hidden') {
       this.dryWet();
       void this.save();
+      void this.recorder.flush();
     }
   };
 
@@ -1370,6 +1507,7 @@ export class Editor {
     this.sheet.close();
     this.dryWet();
     await this.save();
+    await this.recorder.flush();
     this.destroy();
     this.options.onExit();
   }
@@ -1382,6 +1520,8 @@ export class Editor {
     window.removeEventListener('pagehide', this.hidden);
     this.compositor.dispose();
     this.wet?.dispose();
+    this.recorder.dispose();
+    this.timelapsePanel?.dispose();
     this.el.remove();
   }
 }

@@ -36,7 +36,11 @@ export interface DriedPaint {
   rect: [number, number, number, number];
 }
 
-const MAX_UNDO = 8;
+/** Wet undo steps are whole-page snapshots on the GPU, so fewer on phones with less memory. */
+const MAX_UNDO = (() => {
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+  return memory <= 2 ? 3 : memory <= 4 ? 5 : 8;
+})();
 
 /**
  * Live watercolour: a fluid simulation (our Navier–Stokes solver) the shape

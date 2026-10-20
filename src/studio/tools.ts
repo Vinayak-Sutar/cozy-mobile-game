@@ -62,6 +62,10 @@ export interface StudioPrefs {
   fillSample: 'all' | 'layer';
   toolsTab: string;
   glow: GlowSettings;
+  /** Record a time-lapse while painting. */
+  timelapse: boolean;
+  /** One-time tips already shown. */
+  seenTips: string[];
 }
 
 const KEY = 'drift.studio.prefs';
@@ -102,6 +106,8 @@ function defaults(): StudioPrefs {
       symmetry: { mode: 'off', count: 6 },
       tab: 'light',
     },
+    timelapse: true,
+    seenTips: [],
   };
 }
 
@@ -120,6 +126,7 @@ export function loadPrefs(): StudioPrefs {
       brushSizes: saved.brushSizes && typeof saved.brushSizes === 'object' ? saved.brushSizes : {},
       symmetry: { ...base.symmetry, ...(saved.symmetry ?? {}) },
       glow: { ...base.glow, ...(saved.glow ?? {}), symmetry: { ...base.glow.symmetry, ...(saved.glow?.symmetry ?? {}) } },
+      seenTips: Array.isArray(saved.seenTips) ? saved.seenTips : [],
     };
   } catch {
     return base;

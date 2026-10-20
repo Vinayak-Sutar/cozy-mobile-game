@@ -27,7 +27,7 @@ The last card, **Studio**, opens **Drift Studio**, a separate painting app (belo
 
 ## Drift Studio
 
-A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is being built in four milestones; **milestones 1 (foundation), 2 (make it yours) and 3 (alive)** are in:
+A painting app for artists at its own address, `…/studio/` ([live](https://vinayak-sutar.github.io/cozy-mobile-game/studio/)). It installs to the home screen on its own as **Drift Studio**. Version 1 is complete, in four milestones: foundation, make it yours, alive, and share.
 
 - **Gallery:** your paintings, saved automatically in the browser (IndexedDB) after every pause and whenever the app is hidden. Reopening after a reload or crash goes straight back to the painting. **Earlier versions** keeps the last 5 snapshots (one each time you come back and paint, and every 10 minutes). Rename, duplicate and delete from a card's ⋯ menu.
 - **New painting:** Screen, Square 2048, Portrait 2:3, Landscape 3:2, Phone wallpaper, A4 print (300 dpi) or a custom size, up to 4096 px a side. Paper colour, texture (smooth, watercolour, canvas) or transparent.
@@ -44,7 +44,9 @@ A painting app for artists at its own address, `…/studio/` ([live](https://vin
 - **Layers:** up to 16 (fewer on huge canvases or low-memory phones), with opacity, 16 blend modes, alpha lock, reorder, duplicate, merge down, clear and hide.
 - **Undo and redo:** buttons, or tap with two fingers (undo) or three (redo). Four fingers hides the interface.
 - **Pen-only mode** turns on by itself when a stylus touches the screen: fingers then only move the canvas, and touch-and-hold still picks colours.
-- **Export:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
+- **Share → Picture:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
+- **Share → Time-lapse:** the studio quietly records a small frame after each change. Turn this off in ⋯ if you like. **Make video** plays them back as an MP4 (or WebM where MP4 isn't available): a **30-second** short made for sharing, or the **full** replay. The video records in real time, so a 30-second video takes about 30 seconds to make.
+- **Learn as you go:** a short guide the first time you paint (⋯ → Show the guide again), and a tip the first time you use live watercolour, smudge, symmetry, the fill bucket or layers. There's also a nudge towards QuickShape if you haven't found it yet.
 
 **Glow** (the second mode in the gallery) is painting with light, made from Drift's Glow:
 - The light stays (or fades, if you like), and **Freeze** holds it still.
@@ -55,7 +57,7 @@ A painting app for artists at its own address, `…/studio/` ([live](https://vin
 - Undo and clear.
 - Save as PNG/JPEG at screen size with the bloom, or **Keep in gallery** to carry on painting over it with brushes and layers.
 
-Still to come: time-lapse video and a guide (milestone 4).
+After version 1: clipping masks, adjustments (HSB, gradient map, blur), liquify, perspective guides, text, and selection and transform.
 
 Research, design rules, task ideas and the roadmap are in [docs/research-and-strategy.md](docs/research-and-strategy.md).
 

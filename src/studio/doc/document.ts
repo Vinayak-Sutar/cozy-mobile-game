@@ -87,10 +87,10 @@ export function memoryBudget(): number {
   return deviceMemory <= 2 ? 110e6 : deviceMemory <= 4 ? 190e6 : 300e6;
 }
 
-/** How many layers fit, leaving room for the stroke buffer and composite caches. */
+/** How many layers fit, leaving room for the four working canvases (below cache, work, stroke, grain). */
 export function maxLayersFor(width: number, height: number): number {
   const perLayer = width * height * 4;
-  return Math.max(3, Math.min(16, Math.floor(memoryBudget() / perLayer) - 3));
+  return Math.max(3, Math.min(16, Math.floor(memoryBudget() / perLayer) - 4));
 }
 
 export class PaintingDoc {

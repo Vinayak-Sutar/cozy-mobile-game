@@ -1,4 +1,4 @@
-import { context, type Layer, makeCanvas, type PaintingDoc, paperPattern } from '../doc/document';
+import { context, type Layer, makeCanvas, memoryBudget, type PaintingDoc, paperPattern } from '../doc/document';
 import type { Viewport } from './viewport';
 
 /** What the brush engine is doing right now, so the screen can show the stroke before it's committed. */
@@ -12,8 +12,9 @@ export interface LiveStroke {
 
 /**
  * Draws the painting on screen. Paper and every layer below the active one
- * are cached in one canvas, so a frame is: that cache, the active layer (with
- * the live stroke), then each layer above, all under the viewport transform.
+ * are cached in one canvas, and (when there are several) the layers above in
+ * another, so a frame is at most three draws however many layers there are:
+ * below, the active layer (with the live stroke), above.
  */
 export class Compositor {
   private below: HTMLCanvasElement;
@@ -22,6 +23,9 @@ export class Compositor {
   private workCtx: CanvasRenderingContext2D;
   private pattern: HTMLCanvasElement | null = null;
   private belowDirty = true;
+  /** Layers above the active one, flattened; only made when two or more are showing. */
+  private above: HTMLCanvasElement | null = null;
+  private aboveDirty = true;
   private checker: CanvasPattern | null = null;
 
   constructor(private doc: PaintingDoc) {
@@ -35,11 +39,55 @@ export class Compositor {
   /** Call when paper or any layer below the active one changes. */
   invalidate(): void {
     this.belowDirty = true;
+    this.aboveDirty = true;
   }
 
   paperChanged(): void {
     this.pattern = paperPattern(this.doc.paper.texture);
     this.belowDirty = true;
+  }
+
+  /** The layers above the active one that would be drawn. */
+  private layersAbove(): Layer[] {
+    return this.doc.layers.slice(this.doc.active + 1).filter((l) => l.visible && l.opacity > 0);
+  }
+
+  /**
+   * Layers above, merged into one transparent canvas. Blend modes are kept
+   * relative to each other; how the group meets what's below is drawn as
+   * normal, which matches for the usual normal-blend layers. Layers with other
+   * blends are drawn one by one instead (see render).
+   */
+  private aboveCache(): HTMLCanvasElement | null {
+    const layers = this.layersAbove();
+    // Only worth it with several layers above, and only when memory has room
+    // for one more full-size canvas besides the layers and working canvases.
+    const perLayer = this.doc.width * this.doc.height * 4;
+    const roomy = (this.doc.layers.length + 5) * perLayer <= memoryBudget();
+    if (!roomy || layers.length < 2 || layers.some((l) => l.blend !== 'source-over')) {
+      this.dropAbove();
+      return null;
+    }
+    if (!this.above) {
+      this.above = makeCanvas(this.doc.width, this.doc.height);
+      this.aboveDirty = true;
+    }
+    if (this.aboveDirty) {
+      const ctx = context(this.above);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.clearRect(0, 0, this.doc.width, this.doc.height);
+      for (const layer of layers) this.drawLayer(ctx, layer);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      this.aboveDirty = false;
+    }
+    return this.above;
+  }
+
+  private dropAbove(): void {
+    if (this.above) this.above.width = this.above.height = 1;
+    this.above = null;
   }
 
   /** Paper plus every layer below the active one. */
@@ -143,7 +191,14 @@ export class Compositor {
       target.globalAlpha = active.opacity;
       target.drawImage(wet, 0, 0, width, height);
     }
-    for (let i = this.doc.active + 1; i < this.doc.layers.length; i++) this.drawLayer(target, this.doc.layers[i]);
+    const above = this.aboveCache();
+    if (above) {
+      target.globalCompositeOperation = 'source-over';
+      target.globalAlpha = 1;
+      target.drawImage(above, 0, 0);
+    } else {
+      for (let i = this.doc.active + 1; i < this.doc.layers.length; i++) this.drawLayer(target, this.doc.layers[i]);
+    }
     target.globalCompositeOperation = 'source-over';
     target.globalAlpha = 1;
     target.setTransform(1, 0, 0, 1, 0, 0);
@@ -187,6 +242,7 @@ export class Compositor {
   }
 
   dispose(): void {
+    this.dropAbove();
     this.below.width = this.below.height = 1;
     this.work.width = this.work.height = 1;
   }

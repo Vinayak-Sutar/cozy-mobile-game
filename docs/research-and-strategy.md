@@ -114,7 +114,10 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
 3. **Alive** (built):
    - Live watercolour on our fluid solver: five wet brushes; it freezes, drips, re-wets and dries.
    - The Glow studio: light that stays, freeze, symmetry, skies, blooms, undo, export and keep in gallery.
-4. **Share:** time-lapse video (full and 30 s), the first-painting guide and a performance pass.
+4. **Share** (built):
+   - Time-lapse: frames recorded while painting, made into a video, full or 30 s.
+   - The first-painting guide and one-time tips.
+   - A performance and memory pass.
 
 **What sets it apart, from reviews of Procreate, Fresco, Infinite Painter, ibisPaint, Sketchbook and Kleki:**
 - Paint that really flows.
@@ -133,6 +136,15 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
 - **Glow studio:**
   - With the light no longer fading, faint light drifting everywhere fogged the sky. A small pass fades only the faintest light each frame, and the bloom is tighter than the toy's.
   - Symmetry copies share the brightness (1/√copies), so a mandala isn't many times brighter than one stroke.
+- **Time-lapse:**
+  - Frames are 720 px JPEGs saved in IndexedDB (a `frames` store, database version 2), at most one every 0.7 s and never mid-stroke. Very long paintings keep every second or fourth change.
+  - The video uses `MediaRecorder` on a 720 px canvas, staying under the known Android bug with large canvases. It records MP4/H.264 where Chrome supports it (Chrome 126+), otherwise WebM.
+  - Frames are pushed with `requestFrame()` on every tick. A canvas that doesn't change sends no frames, which had cut the held ending short.
+- **Performance and memory:**
+  - The layers above the active one are cached as one canvas, but only when memory has room for it.
+  - The layer limit reserves room for the four working canvases.
+  - Watercolour and Glow undo snapshots (whole-page GPU buffers, up to ~18 MB each) are limited by the phone's memory: 3, 5 or 8.
+  - Frozen watercolour and Glow stop redrawing until something changes.
 - **Smudge** carries a "loaded" brush. It lays its paint down and picks up what it passes over, both measured per distance moved, so smears fade naturally instead of dragging one colour forever.
 - **Export:** PNG is the default because it's lossless and keeps transparency. JPEG is offered for quick sharing.
 - **Memory:** canvas size and layer count are capped by a memory budget, since iOS caps a canvas at about 16.7 MP.
