@@ -145,6 +145,10 @@ A separate page (`studio/`) with only **Paint** and **Glow**, taken as far as a 
   - The layer limit reserves room for the four working canvases.
   - Watercolour and Glow undo snapshots (whole-page GPU buffers, up to ~18 MB each) are limited by the phone's memory: 3, 5 or 8.
   - Frozen watercolour and Glow stop redrawing until something changes.
+- **Desktop and laptop:** no feature is touch-only.
+  - **Conventions:** scrolling follows Figma and Krita (scroll moves, Ctrl+scroll or a trackpad pinch zooms, since browsers send pinches as Ctrl+wheel). The keys follow Photoshop, Procreate and Krita: B, E, [ ], number keys for opacity, Space+drag, and Alt+click to pick a colour.
+  - **Bugs fixed:** a mouse's right or middle button no longer paints, and a trackpad pinch no longer zooms the whole page.
+  - **Mouse users get:** a brush outline cursor, and touch-and-hold to pick a colour is now touch-only.
 - **Smudge** carries a "loaded" brush. It lays its paint down and picks up what it passes over, both measured per distance moved, so smears fade naturally instead of dragging one colour forever.
 - **Export:** PNG is the default because it's lossless and keeps transparency. JPEG is offered for quick sharing.
 - **Memory:** canvas size and layer count are capped by a memory budget, since iOS caps a canvas at about 16.7 MP.

@@ -78,6 +78,11 @@ export class Editor {
   private readonly recorder: TimelapseRecorder;
   private timelapsePanel: TimelapsePanel | null = null;
   private tipCard: HTMLElement | null = null;
+  /** The tool for the stroke under way (a stylus's eraser end erases whatever tool is chosen). */
+  private strokeMode: ToolMode = 'paint';
+  /** The brush outline that follows a mouse or a hovering stylus. */
+  private readonly cursor: HTMLElement;
+  private hover: { x: number; y: number } | null = null;
   private tipTimer = 0;
   private strokesDone = 0;
   private snapsDone = 0;
@@ -148,15 +153,19 @@ export class Editor {
     gallery.addEventListener('click', () => void this.exit());
     this.zoomLabel = document.createElement('button');
     this.zoomLabel.className = 'st-zoom';
-    this.zoomLabel.title = 'Fit to screen';
+    this.zoomLabel.title = 'Fit to screen (Ctrl+0)';
     this.zoomLabel.addEventListener('click', () => this.fit());
     this.undoBtn = button(icons.undo, 'Undo');
+    this.undoBtn.title = 'Undo (Ctrl+Z)';
     this.undoBtn.addEventListener('click', () => this.undo());
     this.redoBtn = button(icons.redo, 'Redo');
+    this.redoBtn.title = 'Redo (Ctrl+Shift+Z)';
     this.redoBtn.addEventListener('click', () => this.redo());
     const layers = button(icons.layers, 'Layers');
+    layers.title = 'Layers (L)';
     layers.addEventListener('click', () => this.openLayers());
     const share = button(icons.share, 'Export and share');
+    share.title = 'Export and share (Ctrl+E)';
     share.addEventListener('click', () => this.openExport());
     const more = button(icons.more, 'More');
     more.addEventListener('click', () => this.openMore());
@@ -182,6 +191,9 @@ export class Editor {
       smudge: button(icons.smudge, 'Smudge'),
       erase: button(icons.eraser, 'Erase'),
     };
+    this.modeBtns.paint.title = 'Paint (B)';
+    this.modeBtns.smudge.title = 'Smudge (S)';
+    this.modeBtns.erase.title = 'Erase (E)';
     for (const mode of ['paint', 'smudge', 'erase'] as ToolMode[]) {
       this.modeBtns[mode].addEventListener('click', () => {
         if (this.prefs.mode === mode && !this.fillActive) this.openBrushes();
@@ -222,7 +234,7 @@ export class Editor {
     this.sheet = new Sheet(this.el);
 
     this.input = new StudioInput(this.canvas, {
-      strokeStart: (p, pen) => this.strokeStart(p, pen),
+      strokeStart: (p, pen, eraser) => this.strokeStart(p, pen, eraser),
       strokeMove: (points) => this.strokeMove(points),
       strokeEnd: () => this.strokeEnd(),
       strokeCancel: () => this.strokeCancel(),
@@ -247,6 +259,17 @@ export class Editor {
     this.input.penOnly = prefs.penOnly;
 
     window.addEventListener('resize', this.resize);
+    // Mouse, trackpad and keyboard.
+    this.cursor = document.createElement('div');
+    this.cursor.className = 'st-cursor st-hidden';
+    this.el.appendChild(this.cursor);
+    this.canvas.addEventListener('wheel', this.wheel, { passive: false });
+    this.canvas.addEventListener('pointermove', this.hoverMove);
+    this.canvas.addEventListener('pointerdown', this.hoverMove);
+    this.canvas.addEventListener('pointerleave', this.hoverLeave);
+    window.addEventListener('keydown', this.keyDown);
+    window.addEventListener('keyup', this.keyUp);
+    window.addEventListener('blur', this.keyReset);
     document.addEventListener('visibilitychange', this.hidden);
     window.addEventListener('pagehide', this.hidden);
     this.resize();
@@ -277,7 +300,9 @@ export class Editor {
       this.el,
       [
         { title: 'Welcome to Drift Studio', text: 'Paint with a finger or a stylus. Everything saves by itself as you go, and the gallery keeps earlier versions too.' },
-        { title: 'Move the painting', text: 'Pinch with two fingers to zoom and turn it, and drag to move. Tap with two fingers to undo, three to redo.' },
+        matchMedia('(hover: hover) and (pointer: fine)').matches
+          ? { title: 'Move the painting', text: 'Scroll to move it, Ctrl + scroll (or pinch a trackpad) to zoom, Alt + scroll to turn it. Ctrl+Z undoes; press ? for every shortcut.' }
+          : { title: 'Move the painting', text: 'Pinch with two fingers to zoom and turn it, and drag to move. Tap with two fingers to undo, three to redo.' },
         { target: at('.st-brush-btn'), title: 'Brushes', text: '35 brushes, from pencils and inks to oil paint and live watercolour. Edit any brush, or make your own.' },
         { target: at('.st-side'), title: 'Size and opacity', text: 'Slide to change how big and how strong the brush is. Each brush remembers its own size.' },
         { target: at('.st-well'), title: 'Colours', text: 'A colour wheel, sliders, harmonies and palettes. Touch and hold the painting to pick up a colour from it.' },
@@ -547,7 +572,185 @@ export class Editor {
   private viewChanged(): void {
     this.zoomLabel.textContent = `${this.view.zoomPercent}%`;
     this.placeHandle();
+    this.placeCursor();
     this.render();
+  }
+
+  // ---------- Mouse, trackpad and keyboard ----------
+
+  /**
+   * Scrolling: two-finger trackpad scroll or the mouse wheel moves the
+   * painting (Shift turns a wheel sideways); Ctrl or ⌘ + scroll, or a
+   * trackpad pinch (which browsers send as Ctrl + scroll), zooms around the
+   * pointer; Alt + scroll turns it.
+   */
+  private wheel = (e: WheelEvent): void => {
+    e.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rect.height : 1;
+    const dx = e.deltaX * unit;
+    const dy = e.deltaY * unit;
+    if (e.ctrlKey || e.metaKey) {
+      // About 1.2x per mouse-wheel notch; trackpad pinches send many small steps.
+      this.view.zoomAt(Math.exp(-Math.max(-60, Math.min(60, dy)) * 0.003), x, y);
+    } else if (e.altKey) {
+      this.view.rotateAt((dy || dx) * 0.003, x, y);
+    } else if (e.shiftKey && !dx) {
+      this.view.tx -= dy;
+    } else {
+      this.view.tx -= dx;
+      this.view.ty -= dy;
+    }
+    this.viewChanged();
+  };
+
+  /** Keys typed into a text box or slider are theirs, not shortcuts. */
+  private typing(e: KeyboardEvent): boolean {
+    const t = e.target as HTMLElement | null;
+    if (!t) return false;
+    const tag = t.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable;
+  }
+
+  private keyDown = (e: KeyboardEvent): void => {
+    if (this.typing(e) || document.querySelector('.st-guide')) return;
+    const ctrl = e.ctrlKey || e.metaKey;
+    const key = e.key.toLowerCase();
+    const centre = (): [number, number] => {
+      const rect = this.canvas.getBoundingClientRect();
+      return this.hover ? [this.hover.x, this.hover.y] : [rect.width / 2, rect.height / 2];
+    };
+    let handled = true;
+    if (key === ' ') {
+      if (!this.input.spaceHeld) {
+        this.input.spaceHeld = true;
+        this.canvas.style.cursor = 'grab';
+        this.cursor.classList.add('st-hidden');
+      }
+    } else if (ctrl && key === 'z') {
+      if (e.shiftKey) this.redo();
+      else this.undo();
+    } else if (ctrl && key === 'y') {
+      this.redo();
+    } else if (ctrl && key === 's') {
+      void this.save().then(() => this.toast('Saved'));
+    } else if (ctrl && key === 'e') {
+      this.openExport();
+    } else if (ctrl && (key === '0' || key === ')')) {
+      this.fit();
+    } else if (ctrl && key === '1') {
+      this.view.zoomTo(1, ...centre());
+      this.viewChanged();
+    } else if ((ctrl && (key === '=' || key === '+')) || (!ctrl && (key === '+' || key === '='))) {
+      this.view.zoomAt(1.25, ...centre());
+      this.viewChanged();
+    } else if ((ctrl && (key === '-' || key === '_')) || (!ctrl && (key === '-' || key === '_'))) {
+      this.view.zoomAt(0.8, ...centre());
+      this.viewChanged();
+    } else if (ctrl) {
+      handled = false;
+    } else if (key === 'b') {
+      this.setMode('paint');
+    } else if (key === 'e') {
+      this.setMode('erase');
+    } else if (key === 's') {
+      this.setMode('smudge');
+    } else if (key === 'g') {
+      this.fillActive = !this.fillActive;
+      this.updateTool();
+      this.toast(this.fillActive ? 'Fill bucket: click an area to fill it' : 'Fill bucket off');
+    } else if (key === '[' || key === ']') {
+      this.nudgeSize(key === ']' ? 1.18 : 1 / 1.18);
+    } else if (/^[0-9]$/.test(key)) {
+      // 1 = 10% … 9 = 90%, 0 = 100%, like most art apps.
+      const opacity = key === '0' ? 1 : Number(key) / 10;
+      this.setOpacity(opacity, true);
+      this.updateTool();
+      this.toast(`Opacity ${Math.round(opacity * 100)}%`);
+    } else if (key === ',' || key === '.') {
+      this.view.rotateAt(((key === '.' ? 1 : -1) * Math.PI) / 12, ...centre(), true);
+      this.viewChanged();
+    } else if (key === 'r') {
+      this.view.rotateAt(-this.view.rotation, ...centre());
+      this.viewChanged();
+    } else if (key === 'l') {
+      this.openLayers();
+    } else if (key === 'tab' && (e.target === document.body || e.target === this.canvas)) {
+      // Only when nothing has focus: keyboard users still need Tab to move between buttons.
+      this.toggleUi();
+    } else if (key === 'escape') {
+      if (this.sheet.openId) this.sheet.close();
+      else if (this.fillActive) {
+        this.fillActive = false;
+        this.updateTool();
+      } else handled = false;
+    } else if (key === '?' || (key === '/' && e.shiftKey)) {
+      this.openHelp();
+    } else {
+      handled = false;
+    }
+    if (handled) e.preventDefault();
+  };
+
+  private keyUp = (e: KeyboardEvent): void => {
+    if (e.key === ' ') {
+      e.preventDefault();
+      this.keyReset();
+    }
+  };
+
+  private keyReset = (): void => {
+    this.input.spaceHeld = false;
+    this.canvas.style.cursor = '';
+    this.placeCursor();
+  };
+
+  /** [ and ]: brush size down or up a step. */
+  private nudgeSize(factor: number): void {
+    const tool = this.prefs.tools[this.prefs.mode];
+    tool.size = Math.min(MAX_SIZE, Math.max(MIN_SIZE, tool.size * factor));
+    savePrefs(this.prefs);
+    this.updateTool();
+    this.placeCursor();
+  }
+
+  /** The brush outline follows a mouse or a hovering stylus, so you can see the brush before painting. */
+  private hoverMove = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') {
+      this.hoverLeave();
+      return;
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    this.hover = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    this.placeCursor();
+  };
+
+  private hoverLeave = (): void => {
+    this.hover = null;
+    this.cursor.classList.add('st-hidden');
+  };
+
+  private placeCursor(): void {
+    const hover = this.hover;
+    if (!hover || this.input.spaceHeld || this.fillActive) {
+      this.cursor.classList.add('st-hidden');
+      if (this.fillActive && hover && !this.input.spaceHeld) this.canvas.style.cursor = 'crosshair';
+      return;
+    }
+    const mode = this.prefs.mode;
+    const size = this.prefs.tools[mode].size * this.docScale * this.view.scale;
+    // Tiny brushes get a plain crosshair; bigger ones an outline of their real size.
+    if (size < 5) {
+      this.cursor.classList.add('st-hidden');
+      this.canvas.style.cursor = 'crosshair';
+      return;
+    }
+    this.canvas.style.cursor = 'none';
+    this.cursor.classList.remove('st-hidden');
+    this.cursor.style.width = this.cursor.style.height = `${size}px`;
+    this.cursor.style.transform = `translate(${hover.x - size / 2}px, ${hover.y - size / 2}px)`;
   }
 
   // ---------- Painting ----------
@@ -561,7 +764,7 @@ export class Editor {
     return Math.max(this.doc.width, this.doc.height) / REFERENCE;
   }
 
-  private strokeStart(p: InputPoint, _pen: boolean): void {
+  private strokeStart(p: InputPoint, _pen: boolean, eraser = false): void {
     this.sheet.close();
     if (this.fillActive) {
       // Fill on lift, so a two-finger gesture that starts with one finger doesn't fill.
@@ -573,7 +776,8 @@ export class Editor {
       this.toast('This layer is hidden');
       return;
     }
-    const mode = this.prefs.mode;
+    const mode: ToolMode = eraser ? 'erase' : this.prefs.mode;
+    this.strokeMode = mode;
     const tool = this.prefs.tools[mode];
     const brush = brushById(tool.brush);
     const sym = this.prefs.symmetry;
@@ -645,7 +849,7 @@ export class Editor {
 
   /** Held still at the end of a stroke: snap it to a clean line or shape. */
   private quickShape(): void {
-    if (!this.prefs.quickShape || !this.engine.active || this.snapped || this.prefs.mode === 'smudge') return;
+    if (!this.prefs.quickShape || !this.engine.active || this.snapped || this.strokeMode === 'smudge') return;
     const raw = this.rawPoints;
     const shape = recognise(raw, 1 / this.view.scale);
     if (!shape) return;
@@ -673,7 +877,7 @@ export class Editor {
     if (this.wetStroke) {
       this.wet?.end();
       this.wetStroke = null;
-      if (this.prefs.mode === 'paint') {
+      if (this.strokeMode === 'paint') {
         pushRecent(this.prefs, this.prefs.color);
         savePrefs(this.prefs);
       }
@@ -682,7 +886,7 @@ export class Editor {
     if (!this.engine.active) return;
     // Predictive stroke: tidy the wobbles of the whole line before it's put down.
     const strength = this.prefs.predictive;
-    if (strength > 0 && !this.snapped && this.prefs.mode !== 'smudge' && this.rawPoints.length > 6) {
+    if (strength > 0 && !this.snapped && this.strokeMode !== 'smudge' && this.rawPoints.length > 6) {
       this.redrawStroke(smoothPath(this.rawPoints, (strength * 16) / this.view.scale));
     }
     this.engine.end();
@@ -697,7 +901,7 @@ export class Editor {
       if (this.strokesDone === 12 && !this.snapsDone && this.prefs.quickShape) {
         this.tip('quickshape', 'Tip: draw a line, circle or box and hold still at the end. It snaps to a clean shape (QuickShape).');
       }
-      if (this.prefs.mode === 'paint') {
+      if (this.strokeMode === 'paint') {
         pushRecent(this.prefs, this.prefs.color);
         savePrefs(this.prefs);
       }
@@ -883,6 +1087,7 @@ export class Editor {
     const px = size * this.docScale * this.view.scale;
     this.sizePreview.style.width = this.sizePreview.style.height = `${Math.max(4, px)}px`;
     this.sizePreview.classList.toggle('st-hidden', done);
+    this.placeCursor();
     if (done) savePrefs(this.prefs);
   }
 
@@ -1411,10 +1616,40 @@ export class Editor {
       ['Tap a tool twice', 'Choose its brush (smudge and eraser too)'],
       ['Pen-only mode', 'With a stylus, fingers only move the canvas'],
     ];
+    const keys: [string, string][] = [
+      ['Scroll / two fingers', 'Move the painting (Shift + wheel: sideways)'],
+      ['Ctrl + scroll, pinch', 'Zoom around the pointer'],
+      ['Alt + scroll', 'Turn the painting'],
+      ['Space + drag', 'Move the painting (middle or right drag too)'],
+      ['Alt + click', 'Pick a colour'],
+      ['Ctrl+Z, Ctrl+Shift+Z', 'Undo, redo'],
+      ['B, E, S, G', 'Paint, eraser, smudge, fill bucket'],
+      ['[ and ]', 'Smaller or bigger brush'],
+      ['1 … 9, 0', 'Opacity 10% … 90%, 100%'],
+      ['+ and −, Ctrl+0, Ctrl+1', 'Zoom in and out, fit, 100%'],
+      [', and .', 'Turn 15° (R straightens)'],
+      ['L, Ctrl+E, Tab', 'Layers, share, hide the interface'],
+      ['Ctrl+S', 'Save now (it also saves by itself)'],
+    ];
     const wrap = document.createElement('div');
     wrap.className = 'st-help';
-    for (const [k, v] of tips) wrap.appendChild(html(`<div><b>${k}</b><span>${v}</span></div>`));
-    this.sheet.open('help', 'Gestures and tips', wrap);
+    const heading = (text: string): HTMLElement => {
+      const h = document.createElement('h3');
+      h.textContent = text;
+      return h;
+    };
+    // Show the set for this device first.
+    const desktop = matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const groups: [string, [string, string][]][] = [
+      ['Touch and stylus', tips],
+      ['Mouse, trackpad and keyboard', keys],
+    ];
+    if (desktop) groups.reverse();
+    for (const [title, list] of groups) {
+      wrap.appendChild(heading(title));
+      for (const [k, v] of list) wrap.appendChild(html(`<div><b>${k}</b><span>${v}</span></div>`));
+    }
+    this.sheet.open('help', 'Gestures, keys and tips', wrap);
   }
 
   // ---------- Saving ----------
@@ -1516,6 +1751,9 @@ export class Editor {
     cancelAnimationFrame(this.raf);
     this.input.destroy();
     window.removeEventListener('resize', this.resize);
+    window.removeEventListener('keydown', this.keyDown);
+    window.removeEventListener('keyup', this.keyUp);
+    window.removeEventListener('blur', this.keyReset);
     document.removeEventListener('visibilitychange', this.hidden);
     window.removeEventListener('pagehide', this.hidden);
     this.compositor.dispose();

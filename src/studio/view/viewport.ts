@@ -71,6 +71,37 @@ export class Viewport {
     this.gesture = null;
   }
 
+  /** Keeps the document point under screen (x, y) there after a change to scale or rotation. */
+  private keep(x: number, y: number, change: () => void): void {
+    const [dx, dy] = this.toDoc(x, y);
+    change();
+    const [sx, sy] = this.toScreen(dx, dy);
+    this.tx += x - sx;
+    this.ty += y - sy;
+  }
+
+  /** Zooms by `factor` around the screen point (x, y), like a mouse wheel or trackpad pinch. */
+  zoomAt(factor: number, x: number, y: number): void {
+    this.keep(x, y, () => (this.scale = Math.min(32, Math.max(0.05, this.scale * factor))));
+  }
+
+  /** Sets an exact zoom (1 = 100%) around (x, y). */
+  zoomTo(scale: number, x: number, y: number): void {
+    this.keep(x, y, () => (this.scale = Math.min(32, Math.max(0.05, scale))));
+  }
+
+  /** Turns by `angle` radians around (x, y). With `snap`, lands exactly on quarter turns it passes near. */
+  rotateAt(angle: number, x: number, y: number, snap = false): void {
+    this.keep(x, y, () => {
+      let rotation = this.rotation + angle;
+      if (snap) {
+        const step = Math.PI / 12;
+        rotation = Math.round(rotation / step) * step;
+      }
+      this.rotation = Math.atan2(Math.sin(rotation), Math.cos(rotation));
+    });
+  }
+
   get zoomPercent(): number {
     return Math.round(this.scale * 100);
   }

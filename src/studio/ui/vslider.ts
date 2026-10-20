@@ -29,6 +29,16 @@ export class VSlider {
       if (this.el.hasPointerCapture(e.pointerId)) pick(e, false);
     });
     this.el.addEventListener('pointerup', (e) => pick(e, true));
+    // A mouse wheel or two-finger scroll over the slider nudges it.
+    this.el.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        this.set(this.value - Math.sign(e.deltaY || -e.deltaX) * 0.03);
+        onChange(this.value, true);
+      },
+      { passive: false },
+    );
   }
 
   set(value: number): void {

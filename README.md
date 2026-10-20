@@ -43,6 +43,17 @@ A painting app for artists at its own address, `…/studio/` ([live](https://vin
 - **Colour:** a disc, HSV/RGB sliders with hex, harmony suggestions, 8 built-in palettes plus your own, and the last 10 colours. Touch and hold the canvas to pick a colour.
 - **Layers:** up to 16 (fewer on huge canvases or low-memory phones), with opacity, 16 blend modes, alpha lock, reorder, duplicate, merge down, clear and hide.
 - **Undo and redo:** buttons, or tap with two fingers (undo) or three (redo). Four fingers hides the interface.
+- **On a laptop or desktop** (mouse, trackpad and keyboard), nothing is touch-only:
+  - **Moving and turning the painting:** scroll or two-finger trackpad scroll moves it. Ctrl/⌘ + scroll, or a trackpad pinch, zooms around the pointer, and Alt + scroll turns it. Space + drag, or a middle or right drag, also moves it.
+  - **Painting:** a brush outline follows the mouse so you see its size, and Alt+click picks a colour.
+  - **Shortcuts:**
+    - Ctrl+Z / Ctrl+Shift+Z undo and redo. B, E, S and G are paint, eraser, smudge and fill.
+    - [ and ] change the brush size, and 1…0 the opacity.
+    - +, − and Ctrl+0 / Ctrl+1 zoom in, zoom out, fit and go to 100%.
+    - , and . turn the painting 15° (R straightens it).
+    - L opens layers, Ctrl+E shares, Tab hides the interface, Ctrl+S saves, and ? lists them all.
+  - **A stylus on a computer** works too: its eraser end erases and its side button picks a colour.
+  - **Glow:** F freezes, [ ] change the size, and Ctrl+Z undoes.
 - **Pen-only mode** turns on by itself when a stylus touches the screen: fingers then only move the canvas, and touch-and-hold still picks colours.
 - **Share → Picture:** PNG (full quality, keeps transparency; best for art) or JPEG (smaller, with a quality slider), at full or half size, through the phone's share sheet or as a download.
 - **Share → Time-lapse:** the studio quietly records a small frame after each change. Turn this off in ⋯ if you like. **Make video** plays them back as an MP4 (or WebM where MP4 isn't available): a **30-second** short made for sharing, or the **full** replay. The video records in real time, so a 30-second video takes about 30 seconds to make.

@@ -80,6 +80,7 @@ export class GlowStudio {
   private readonly well: HTMLButtonElement;
   private readonly symBtn: HTMLButtonElement;
   private colorPanel: ColorPanel | null = null;
+  private sizeSlider!: VSlider;
 
   /** Null when WebGL isn't available. */
   static create(parent: HTMLElement, prefs: StudioPrefs, options: GlowOptions): GlowStudio | null {
@@ -138,6 +139,7 @@ export class GlowStudio {
     const clear = button(icons.trash, 'Clear');
     clear.addEventListener('click', () => this.clear());
     this.freezeBtn = button(icons.freeze, 'Freeze the light');
+    this.freezeBtn.title = 'Freeze the light (F)';
     this.freezeBtn.addEventListener('click', () => this.setFrozen(!this.frozen));
     const share = button(icons.share, 'Save and share');
     share.addEventListener('click', () => this.openExport());
@@ -146,10 +148,10 @@ export class GlowStudio {
     // Size and brightness on the left edge.
     const side = document.createElement('div');
     side.className = 'st-side';
-    const size = new VSlider('Size', (v, done) => {
+    const size = (this.sizeSlider = new VSlider('Size', (v, done) => {
       this.prefs.glow.size = v;
       if (done) savePrefs(this.prefs);
-    });
+    }));
     const bright = new VSlider('Bright', (v, done) => {
       this.prefs.glow.brightness = Math.max(0.05, v);
       if (done) savePrefs(this.prefs);
@@ -184,10 +186,30 @@ export class GlowStudio {
     this.canvas.addEventListener('pointercancel', this.up);
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('resize', this.resize);
+    window.addEventListener('keydown', this.keyDown);
     this.updateUi();
     this.loop();
     this.toast('Paint with light. Hold still to gather a glow.', 2600);
   }
+
+  /** Keys: Ctrl+Z undo, F freeze, [ and ] size, Escape closes a panel. */
+  private keyDown = (e: KeyboardEvent): void => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+    const key = e.key.toLowerCase();
+    let handled = true;
+    if ((e.ctrlKey || e.metaKey) && key === 'z') this.undo();
+    else if (e.ctrlKey || e.metaKey) handled = false;
+    else if (key === 'f') this.setFrozen(!this.frozen);
+    else if (key === '[' || key === ']') {
+      const g = this.prefs.glow;
+      g.size = Math.min(1, Math.max(0, g.size + (key === ']' ? 0.08 : -0.08)));
+      this.sizeSlider.set(g.size);
+      savePrefs(this.prefs);
+    } else if (key === 'escape') this.sheet.close();
+    else handled = false;
+    if (handled) e.preventDefault();
+  };
 
   // ---------- Setup ----------
 
@@ -260,6 +282,8 @@ export class GlowStudio {
 
   private down = (e: PointerEvent): void => {
     e.preventDefault();
+    // Only the left mouse button paints light.
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     this.sheet.close();
     this.canvas.setPointerCapture?.(e.pointerId);
     if (!this.fingers.size) this.saveUndo();
@@ -771,6 +795,7 @@ export class GlowStudio {
   destroy(): void {
     cancelAnimationFrame(this.raf);
     window.removeEventListener('resize', this.resize);
+    window.removeEventListener('keydown', this.keyDown);
     this.clearUndo();
     this.bloom?.dispose();
     this.sunrays?.dispose();

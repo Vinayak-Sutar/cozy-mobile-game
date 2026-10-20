@@ -1193,3 +1193,44 @@ input.st-input {
     transform: translate(-50%, 10px);
   }
 }
+
+/* ---------- Mouse and keyboard ---------- */
+
+/* The brush outline that follows a mouse or a hovering stylus. */
+.st-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.st-cursor::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.st-chrome-hidden .st-cursor {
+  opacity: 1;
+}
+
+.st-help h3 {
+  margin: 10px 0 2px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.st-help h3:first-child {
+  margin-top: 0;
+}

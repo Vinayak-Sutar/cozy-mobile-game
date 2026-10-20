@@ -6,6 +6,11 @@
  * - touch and hold (without moving) picks a colour;
  * - pausing at the end of a stroke (still touching) asks for QuickShape.
  * In pen-only mode, fingers never paint: one finger pans, two pinch.
+ *
+ * With a mouse: the left button paints; the middle or right button, or the
+ * left button while Space is held, drags the canvas; Alt+click picks a
+ * colour. A stylus's side button picks a colour and its eraser end erases.
+ * (Scrolling and keys are handled by the editor.)
  */
 export interface InputPoint {
   x: number;
@@ -19,7 +24,8 @@ export interface InputPoint {
 }
 
 export interface InputHandlers {
-  strokeStart(point: InputPoint, pen: boolean): void;
+  /** `eraser`: drawn with a stylus's eraser end. */
+  strokeStart(point: InputPoint, pen: boolean, eraser: boolean): void;
   strokeMove(points: InputPoint[]): void;
   strokeEnd(): void;
   strokeCancel(): void;
@@ -55,6 +61,8 @@ const SHAPE_MS = 520;
 
 export class StudioInput {
   penOnly = false;
+  /** Space is held: the left button drags the canvas (as in most desktop art apps). */
+  spaceHeld = false;
   private pointers = new Map<number, Tracked>();
   private state: State = 'idle';
   private drawer = -1;
@@ -116,6 +124,20 @@ export class StudioInput {
     if (this.state === 'wait' && e.pointerType === 'pen') this.state = 'idle';
 
     if (this.state === 'idle') {
+      const mouse = e.pointerType === 'mouse';
+      const pen = e.pointerType === 'pen';
+      // Middle or right mouse button, or Space held: drag the canvas around.
+      if ((mouse && (e.button === 1 || e.button === 2)) || ((mouse || pen) && this.spaceHeld)) {
+        this.state = 'pan';
+        return;
+      }
+      // Alt+click, or a stylus's side button: pick a colour.
+      if ((e.altKey && (mouse || pen)) || (pen && e.button === 2)) {
+        this.state = 'eyedropper';
+        this.drawer = e.pointerId;
+        this.handlers.eyedropper(x, y, 'start');
+        return;
+      }
       if (this.penOnly && e.pointerType === 'touch') {
         this.state = 'pan';
         // In pen-only mode a finger still picks colours: touch and hold without moving.
@@ -135,9 +157,12 @@ export class StudioInput {
       this.strokeStart = performance.now();
       this.strokeTravel = 0;
       this.still = [x, y];
-      this.handlers.strokeStart(this.point(e), e.pointerType === 'pen');
-      // Touch and hold without moving: pick a colour instead.
-      if (e.pointerType !== 'pen') {
+      // A stylus's eraser end reports button 5 (and the 32 bit in buttons).
+      const eraser = e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
+      this.handlers.strokeStart(this.point(e), e.pointerType === 'pen', eraser);
+      // Touch and hold without moving: pick a colour instead. (Mouse users have
+      // Alt+click, so a mouse resting before a stroke doesn't pick a colour.)
+      if (e.pointerType === 'touch') {
         window.clearTimeout(this.holdTimer);
         this.holdTimer = window.setTimeout(() => {
           if (this.state === 'drawing' && this.strokeTravel < 8) {
